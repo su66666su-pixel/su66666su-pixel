@@ -1,13 +1,88 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Crown, X, Check, Star } from 'lucide-react';
+import { Crown, X, Check, Star, Gem } from 'lucide-react';
+import { supabase } from '../supabase';
 
 interface SubscriptionNoticeProps {
+  user: any;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function SubscriptionNotice({ isOpen, onClose }: SubscriptionNoticeProps) {
+export default function SubscriptionNotice({ user, isOpen, onClose }: SubscriptionNoticeProps) {
+  const paypalContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const activateRoyalFrame = async (subscriptionID: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          is_premium: true,
+          subscription_id: subscriptionID,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.uid);
+
+      if (error) throw error;
+      
+      alert("تهانينا! تم تفعيل البرواز الذهبي والصلاحيات السيادية بنجاح! 👑💎");
+      onClose();
+      // Optional: Force reload or better, update local state via a context or parent update
+      window.location.reload(); 
+    } catch (err) {
+      console.error("Failed to activate royal frame:", err);
+      alert("حدث خطأ أثناء تفعيل العضوية. يرجى مراسلة الدعم الفني.");
+    }
+  };
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const scriptId = 'paypal-sdk-script';
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+    const initPayPalButtons = () => {
+      if (window.paypal && paypalContainerRef.current) {
+        // Clear previous buttons if any
+        paypalContainerRef.current.innerHTML = '';
+        
+        window.paypal.Buttons({
+          style: {
+            shape: 'rect',
+            color: 'gold',
+            layout: 'vertical',
+            label: 'subscribe'
+          },
+          createSubscription: (data: any, actions: any) => {
+            return actions.subscription.create({
+              plan_id: 'P-23V643418K057153XNIDSGBY'
+            });
+          },
+          onApprove: (data: any, actions: any) => {
+            activateRoyalFrame(data.subscriptionID);
+          },
+          onError: (err: any) => {
+            console.error('PayPal Error:', err);
+          }
+        }).render(paypalContainerRef.current);
+      }
+    };
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = "https://www.paypal.com/sdk/js?client-id=BAAglZKZcUuERJm33KKXC8K1KrUco40riEzuyiU_3m3wbvIRRbz1UN3yfvKdN4eMWMD4uiIhKgQsQqU4Uc&vault=true&intent=subscription";
+      script.setAttribute('data-sdk-integration-source', 'button-factory');
+      script.async = true;
+      script.onload = initPayPalButtons;
+      document.head.appendChild(script);
+    } else {
+      // Small delay to ensure the modal is fully rendered and the ref is attached
+      const timer = setTimeout(initPayPalButtons, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -24,7 +99,7 @@ export default function SubscriptionNotice({ isOpen, onClose }: SubscriptionNoti
             initial={{ scale: 0.8, opacity: 0, y: 30 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: 30 }}
-            className="relative bg-[#0f0f0f] border-2 border-[#D4AF37] rounded-[3rem] p-10 max-w-sm w-full text-center shadow-[0_0_60px_rgba(212,175,55,0.15)] overflow-hidden"
+            className="relative bg-[#0f0f0f] border-2 border-[#D4AF37] rounded-[3rem] p-10 max-w-sm w-full text-center shadow-[0_0_60px_rgba(212,175,55,0.15)] overflow-y-auto max-h-[90vh]"
             dir="rtl"
           >
             {/* Background elements */}
@@ -37,66 +112,48 @@ export default function SubscriptionNotice({ isOpen, onClose }: SubscriptionNoti
               <X className="w-6 h-6" />
             </button>
 
-            <div className="mb-8 relative z-10">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-b from-[#FFD700] to-[#D4AF37] shadow-[0_0_25px_rgba(255,215,0,0.4)] mb-4">
-                <Crown className="text-black w-10 h-10" />
+            <div className="mb-6 relative z-10">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-b from-[#FFD700] to-[#D4AF37] shadow-[0_0_25px_rgba(255,215,0,0.4)] mb-4 animate-pulse">
+                <Gem className="text-black w-10 h-10" />
               </div>
-              <h2 className="text-white text-2xl font-black tracking-tight">العضوية الملكية</h2>
-              <p className="text-[#D4AF37] text-[10px] mt-1 tracking-[0.3em] font-bold uppercase">SOVEREIGN ACCESS</p>
+              <h2 className="text-white text-2xl font-black tracking-tight">تفعيل البرواز الذهبي</h2>
+              <p className="text-gray-500 text-xs mt-2 font-medium">اشترك الآن واحصل على كامل الصلاحيات السيادية</p>
             </div>
 
-            <div className="bg-[#151515] rounded-[2rem] p-6 mb-8 border border-white/5 relative group">
+            <div className="bg-[#151515] rounded-[2rem] p-6 mb-6 border border-white/5 relative group">
                 <div className="text-4xl font-black text-white tracking-tighter">10.00 <span className="text-xs text-gray-500 font-medium">ر.س / شهر</span></div>
-                <p className="text-[10px] text-green-500 mt-2 font-black uppercase tracking-widest animate-pulse">أول 3 أشهر مجاناً 🔥</p>
+                <p className="text-[10px] text-green-500 mt-2 font-black uppercase tracking-widest">تفعيل فوري للصلاحيات 🔥</p>
                 <div className="absolute top-2 right-4 opacity-5">
                    <Star className="w-12 h-12 text-[#D4AF37]" />
                 </div>
             </div>
 
-            <ul className="text-right space-y-4 mb-10 px-2 text-xs text-gray-400 font-medium">
+            <ul className="text-right space-y-3 mb-8 px-2 text-xs text-gray-400 font-medium">
                 <li className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-[#D4AF37]/10 flex items-center justify-center">
                     <Check className="w-3 h-3 text-[#D4AF37]" />
                   </div>
-                  <span>مكالمات فيديو بدقة 4K</span>
+                  <span>البرواز الذهبي الملكي حول صورتك</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-[#D4AF37]/10 flex items-center justify-center">
                     <Check className="w-3 h-3 text-[#D4AF37]" />
                   </div>
-                  <span>بث مباشر بدون إعلانات</span>
+                  <span>مكالمات فيديو بدقة 4K فائقة</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-[#D4AF37]/10 flex items-center justify-center">
                     <Check className="w-3 h-3 text-[#D4AF37]" />
                   </div>
-                  <span>شارة "الملك" الذهبية بجانب اسمك</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#D4AF37]/10 flex items-center justify-center">
-                    <Check className="w-3 h-3 text-[#D4AF37]" />
-                  </div>
-                  <span>أولوية في الظهور "بالقريبين مني"</span>
+                  <span>شارة "الملك" الذهبية الموثقة</span>
                 </li>
             </ul>
 
-            <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
-                <input type="hidden" name="cmd" value="_s-xclick" />
-                <input type="hidden" name="hosted_button_id" value="SK6RPCV6F289C" />
-                <input type="hidden" name="currency_code" value="USD" />
-                
-                <button 
-                  type="submit" 
-                  className="w-full py-4 bg-[#FFD700] text-black font-black rounded-2xl shadow-[0_10px_30px_rgba(255,215,0,0.3)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 text-sm uppercase tracking-widest"
-                >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.328a.641.641 0 0 1 .633-.541h9.191c4.14 0 6.643 2.053 6.643 5.4 0 2.946-1.92 6.002-5.46 6.005h-1.543l-.696 4.417a.641.641 0 0 1-.632.541H7.076z"/>
-                    </svg>
-                    اشتراك سيادي الآن
-                </button>
-            </form>
+            <div id="paypal-button-container" ref={paypalContainerRef} className="my-6 min-h-[150px] relative z-10" />
 
-            <p className="mt-8 text-[8px] text-gray-700 uppercase tracking-widest font-mono">
+            <p className="mt-8 text-[9px] text-gray-600 italic leading-relaxed">
+              سيتم تفعيل مميزاتك فور تأكيد الاشتراك من PayPal
+              <br />
               Secure Payment Processed by PayPal & SNNS Encryption
             </p>
           </motion.div>

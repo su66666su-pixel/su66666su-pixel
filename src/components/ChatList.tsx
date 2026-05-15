@@ -108,22 +108,24 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
-    const checkUserSubscription = async (userId: string) => {
+    const fetchUserProfile = async (userId: string) => {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('trial_ends_at, is_premium')
+          .select('*')
           .eq('id', userId)
           .single();
 
         if (error) {
-          console.error("Subscription check failed", error);
+          console.error("Profile fetch failed", error);
           return;
         }
 
         if (profile) {
+          setUserProfile(profile);
           const now = new Date();
           const trialEnd = new Date(profile.trial_ends_at);
 
@@ -132,11 +134,11 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           }
         }
       } catch (err) {
-        console.error("Error in checkUserSubscription", err);
+        console.error("Error in fetchUserProfile", err);
       }
     };
 
-    checkUserSubscription(user.uid);
+    fetchUserProfile(user.uid);
 
     // Expose simulation function to window for the simulate button in ChatWindow
     (window as any).simulateIncomingCall = () => {
@@ -282,11 +284,14 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         </nav>
 
         <div className="mt-auto flex flex-col items-center gap-8">
-           <div className="w-10 h-10 border border-gold/30 p-0.5 rounded-none overflow-hidden group cursor-pointer">
+           <div className={`w-10 h-10 border p-0.5 rounded-none overflow-hidden group cursor-pointer relative ${userProfile?.is_premium ? 'border-[#FFD700] shadow-[0_0_15px_rgba(255,215,0,0.5)]' : 'border-gold/30'}`}>
+             {userProfile?.is_premium && (
+               <div className="absolute inset-0 border-2 border-[#FFD700] animate-pulse pointer-events-none z-10" />
+             )}
              <img 
                src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=D4AF37&color=111`} 
                alt="Profile" 
-               className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
+               className={`w-full h-full object-cover transition-all ${userProfile?.is_premium ? 'grayscale-0' : 'grayscale group-hover:grayscale-0'}`}
              />
            </div>
            <button 
@@ -448,6 +453,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         onClose={() => setIsProfileOpen(false)} 
       />
       <SubscriptionNotice 
+        user={user}
         isOpen={isSubscriptionOpen} 
         onClose={() => setIsSubscriptionOpen(false)} 
       />

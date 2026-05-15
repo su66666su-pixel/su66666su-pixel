@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { supabase } from '../supabase';
 import { 
   Crown, 
   LayoutDashboard, 
@@ -8,7 +9,8 @@ import {
   Bell, 
   EllipsisVertical, 
   TrendingUp, 
-  ArrowUpRight 
+  ArrowUpRight,
+  Star
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -36,6 +38,35 @@ ChartJS.register(
 );
 
 export default function AdminDashboard() {
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [subscriberCount, setSubscriberCount] = useState(0);
+
+  useEffect(() => {
+    const fetchFinancialStats = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('coin_transactions')
+          .select('amount')
+          .eq('transaction_type', 'subscription');
+
+        if (error) {
+          console.error("Error fetching financial stats:", error);
+          return;
+        }
+
+        if (data) {
+          const total = data.reduce((sum, item) => sum + (item.amount || 0), 0);
+          setTotalRevenue(total);
+          setSubscriberCount(data.length);
+        }
+      } catch (err) {
+        console.error("Unexpected error fetching stats:", err);
+      }
+    };
+
+    fetchFinancialStats();
+  }, []);
+
   const chartData = {
     labels: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
     datasets: [
@@ -145,22 +176,22 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <main className="flex-1 p-8 overflow-y-auto bg-dot-pattern">
         
-        {/* Header */}
-        <div className="flex justify-between items-center mb-10">
+        {/* Header - Royal Financial Statistics */}
+        <div className="flex justify-between items-center mb-10 border-b border-[#D4AF37]/20 pb-6">
           <div>
-            <motion.h2 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-3xl font-black tracking-tight"
+            <motion.h1 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-3xl font-black text-[#FFD700] tracking-tight"
             >
-              مرحباً بك، مدير النظام 👋
-            </motion.h2>
-            <p className="text-gray-500 mt-1">إليك ملخص نشاط SNNS لهذا اليوم</p>
+              الإحصائيات المالية الملكية
+            </motion.h1>
+            <p className="text-gray-500 text-sm mt-1">تتبع نمو اشتراكات الـ 10 ريال لحظياً</p>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="bg-[#0f0f0f] p-3 rounded-full border border-white/5 text-[#FFD700] hover:scale-110 transition-all relative group">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0f0f0f]" />
+          <div className="flex gap-4">
+            <button className="bg-[#1a1a1a] p-3 rounded-xl border border-gray-800 text-[#FFD700] hover:bg-[#D4AF37] hover:text-black transition-all flex items-center gap-2 text-xs font-bold shadow-lg">
+              <ArrowUpRight className="w-4 h-4" />
+              تصدير التقرير
             </button>
             <div className="flex items-center gap-3 bg-[#0f0f0f] pr-1 pl-4 py-1 rounded-full border border-white/5">
               <img 
@@ -169,141 +200,92 @@ export default function AdminDashboard() {
                 alt="Admin"
               />
               <div className="text-left">
-                <p className="text-xs font-bold">المشرف العام</p>
-                <p className="text-[9px] text-gray-500 uppercase tracking-widest">Master Root</p>
+                <p className="text-xs font-bold text-white">المشرف العام</p>
+                <p className="text-[8px] text-gray-500 uppercase tracking-widest">Master Root</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - Enhanced Financial Focus */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           <motion.div 
             whileHover={{ y: -5 }}
-            className="bg-[#0f0f0f] p-6 rounded-2xl border border-white/5 shadow-2xl relative overflow-hidden group"
+            className="bg-[#0f0f0f] p-8 rounded-[2rem] border border-gray-800 relative overflow-hidden group shadow-2xl"
           >
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <TrendingUp className="w-16 h-16 text-[#FFD700]" />
+            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-20 transition-opacity">
+              <Coins className="w-20 h-20 text-[#FFD700]" />
             </div>
-            <p className="text-gray-500 text-sm flex items-center gap-2">
-              إجمالي الإيرادات
-              <ArrowUpRight className="w-3 h-3 text-green-400" />
-            </p>
-            <h3 className="text-2xl font-black text-[#FFD700] mt-2 tabular-nums">1,250,680 ر.س</h3>
-            <div className="h-1 bg-white/5 mt-6 rounded-full overflow-hidden">
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: "66%" }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
-                className="h-full bg-[#D4AF37] shadow-[0_0_10px_#D4AF37]" 
-              />
+            <p className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">إجمالي الدخل (PayPal)</p>
+            <h3 className="text-3xl font-black text-[#FFD700] mt-3 tracking-tighter" id="totalRevenue">{totalRevenue.toLocaleString()}.00 $</h3>
+            <div className="flex items-center gap-1 mt-3">
+              <span className="text-[10px] text-green-500 font-bold">+12% عن الشهر الماضي</span>
+              <TrendingUp className="w-3 h-3 text-green-500" />
             </div>
-            <p className="text-[10px] text-green-400 mt-2 font-bold">+12.5% منذ الشهر الماضي</p>
           </motion.div>
 
           <motion.div 
             whileHover={{ y: -5 }}
-            className="bg-[#0f0f0f] p-6 rounded-2xl border border-white/5 shadow-2xl"
+            className="bg-[#0f0f0f] p-8 rounded-[2rem] border border-gray-800 shadow-2xl"
           >
-             <p className="text-gray-500 text-sm">المستخدمين النشطين</p>
-             <h3 className="text-2xl font-black text-white mt-2 tabular-nums">42,890</h3>
-             <div className="flex gap-1 mt-4">
-                {[1,2,3,4,5,6].map((i) => (
-                  <div key={i} className={`h-8 w-full bg-white/5 rounded-sm overflow-hidden relative`}>
-                    <div className="absolute bottom-0 w-full bg-neon-gold/20" style={{ height: `${Math.random() * 100}%` }} />
-                  </div>
-                ))}
-             </div>
+            <p className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">المشتركون النشطون</p>
+            <h3 className="text-3xl font-black text-white mt-3 tabular-nums" id="activeSubscribers">{subscriberCount.toLocaleString()}</h3>
+            <p className="text-[10px] text-[#D4AF37] mt-3 font-bold">قيد التجربة: 148 مستخدم</p>
           </motion.div>
 
           <motion.div 
             whileHover={{ y: -5 }}
-            className="bg-[#0f0f0f] p-6 rounded-2xl border border-white/5 shadow-2xl"
+            className="bg-[#0f0f0f] p-8 rounded-[2rem] border border-gray-800 shadow-2xl"
           >
-             <p className="text-gray-500 text-sm">الجلسات الحالية</p>
-             <h3 className="text-2xl font-black text-green-400 mt-2 tabular-nums">1,402</h3>
-             <div className="mt-4 flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-500 rounded-full online-pulse" />
-                <span className="text-[10px] text-gray-400 uppercase tracking-widest">Real-time Traffic</span>
-             </div>
+            <p className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">معدل التحويل (Conversion)</p>
+            <h3 className="text-3xl font-black text-white mt-3 tracking-tighter">8.4%</h3>
+            <div className="w-full bg-gray-900 h-2 mt-4 rounded-full overflow-hidden">
+                <motion.div 
+                   initial={{ width: 0 }}
+                   animate={{ width: '8.4%' }}
+                   className="bg-[#FFD700] h-full shadow-[0_0_10px_#FFD700]" 
+                />
+            </div>
           </motion.div>
 
           <motion.div 
             whileHover={{ y: -5 }}
-            className="bg-[#0f0f0f] p-6 rounded-2xl border border-white/5 shadow-2xl bg-gradient-to-br from-[#0f0f0f] to-neon-gold/5"
+            className="bg-[#0f0f0f] p-8 rounded-[2rem] border border-gray-800 bg-gradient-to-br from-[#0f0f0f] to-neon-gold/5 shadow-2xl"
           >
-             <p className="text-gray-500 text-sm">تقييم المنصة</p>
-             <h3 className="text-2xl font-black text-[#FFD700] mt-2 tabular-nums">4.9/5.0</h3>
-             <div className="mt-4 flex text-neon-gold gap-0.5">
-                {[1,2,3,4,5].map(i => <Crown key={i} className="w-3 h-3 fill-current" />)}
+             <p className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">تقييم المنصة</p>
+             <h3 className="text-3xl font-black text-white mt-3 tracking-tighter">4.9/5.0</h3>
+             <div className="mt-4 flex text-neon-gold gap-1">
+                {[1,2,3,4,5].map(i => <Star key={i} className="w-3.5 h-3.5 fill-current" />)}
              </div>
           </motion.div>
         </div>
 
-        {/* Charts & Secondary Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="lg:col-span-2 bg-[#0f0f0f] p-8 rounded-2xl border border-white/5 shadow-2xl relative overflow-hidden"
-          >
-            <div className="flex justify-between items-center mb-10">
-              <div>
-                <h3 className="text-lg font-black text-white">إحصائيات النمو</h3>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Sovereign Revenue Analytics</p>
-              </div>
-              <div className="flex gap-2">
-                <span className="px-3 py-1 bg-[#D4AF37]/10 text-[#D4AF37] rounded-full text-[10px] font-bold border border-[#D4AF37]/20">أسبوعي</span>
-                <span className="px-3 py-1 bg-white/5 text-gray-500 rounded-full text-[10px] font-bold border border-white/5">شهري</span>
-              </div>
-            </div>
-            <div className="h-[300px] relative">
-              <Line data={chartData} options={chartOptions} />
-            </div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-[#0f0f0f] p-8 rounded-2xl border border-white/5 shadow-2xl flex flex-col justify-between"
-          >
+        {/* Profit growth chart section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#0f0f0f] p-10 rounded-[3rem] border border-gray-800 shadow-2xl mb-10"
+        >
+          <div className="flex justify-between items-center mb-10">
             <div>
-              <h3 className="text-lg font-black text-white mb-6">توزيع الأعضاء</h3>
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">احترافية ملكية</span>
-                    <span className="text-[#D4AF37] font-bold">78%</span>
-                  </div>
-                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: '78%' }} className="h-full bg-[#D4AF37]" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">عضوية ذهبية</span>
-                    <span className="text-neon-gold font-bold">15%</span>
-                  </div>
-                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: '15%' }} className="h-full bg-neon-gold" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">مستخدم عادي</span>
-                    <span className="text-gray-500 font-bold">7%</span>
-                  </div>
-                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: '7%' }} className="h-full bg-gray-500" />
-                  </div>
-                </div>
+              <h3 className="text-lg font-black text-[#FFD700] uppercase tracking-wider">منحنى نمو الأرباح</h3>
+              <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest font-bold">Daily Revenue Projection & Realized Profit</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-[#FFD700]" />
+                <span className="text-[10px] text-gray-500 uppercase font-black">Revenue</span>
+              </div>
+              <div className="px-3 py-1 bg-white/5 rounded-full border border-white/5 text-[9px] font-bold text-gray-400">
+                LIVE UPDATE
               </div>
             </div>
-            <button className="w-full py-4 mt-8 bg-white/5 border border-white/5 rounded-xl text-xs font-bold hover:bg-white/10 transition-all text-gray-300">
-              تصدير التقارير
-            </button>
-          </motion.div>
-        </div>
+          </div>
+          <div className="h-[400px] relative">
+            <Line data={chartData} options={chartOptions} />
+          </div>
+        </motion.div>
+
 
         {/* Table Section */}
         <motion.div 

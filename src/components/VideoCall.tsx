@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   PhoneOff, 
   Mic, 
@@ -10,8 +10,18 @@ import {
   Shield,
   Crown,
   Expand,
-  Settings
+  Settings,
+  Gift as GiftIcon,
+  Bird
 } from 'lucide-react';
+import GiftSelector from './GiftSelector';
+
+interface ActiveGift {
+  type: string;
+  emoji: string;
+  name: string;
+  timestamp: number;
+}
 
 interface VideoCallProps {
   onHangUp: () => void;
@@ -23,6 +33,24 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
   const [isMicOn, setIsMicOn] = useState(true);
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [showGifts, setShowGifts] = useState(false);
+  const [activeGift, setActiveGift] = useState<ActiveGift | null>(null);
+
+  const handleSendGift = (gift: any) => {
+    setActiveGift({
+      type: gift.name,
+      emoji: gift.emoji,
+      name: gift.name,
+      timestamp: Date.now()
+    });
+    
+    setShowGifts(false);
+
+    // Auto-clear after 4 seconds
+    setTimeout(() => {
+      setActiveGift(null);
+    }, 4000);
+  };
 
   useEffect(() => {
     async function startCamera() {
@@ -125,6 +153,44 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
                 className="w-full h-full object-cover filter grayscale opacity-30"
               />
               <div className="absolute inset-[-10px] border border-white/5 animate-ping opacity-20" />
+              
+              {/* Gift Animation Container */}
+              <AnimatePresence>
+                {activeGift && (
+                  <motion.div 
+                    initial={{ scale: 0.5, opacity: 0, y: 50 }}
+                    animate={{ scale: [0.5, 1.2, 1], opacity: 1, y: 0 }}
+                    exit={{ scale: 1.5, opacity: 0 }}
+                    className="absolute inset-0 z-50 flex items-center justify-center"
+                  >
+                    {activeGift.type === 'Falcon' ? (
+                      <div className="relative flex flex-col items-center">
+                        <motion.div
+                          animate={{ rotate: [0, -10, 10, -10, 0] }}
+                          transition={{ duration: 0.5, repeat: Infinity }}
+                        >
+                          <Bird 
+                            className="w-16 h-16 text-[#FFD700] drop-shadow-[0_0_20px_#FFD700]" 
+                            strokeWidth={1.5}
+                          />
+                        </motion.div>
+                        <span className="absolute -top-12 text-[#FFD700] font-black whitespace-nowrap text-xs bg-black/80 px-3 py-1 border border-[#FFD700]/30 shadow-2xl">
+                          صقر ملكي! 🦅
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="relative flex flex-col items-center">
+                        <span className="text-7xl animate-bounce drop-shadow-[0_0_30px_rgba(255,215,0,0.5)]">
+                          {activeGift.emoji}
+                        </span>
+                        <span className="mt-2 text-[#FFD700] font-black text-[10px] uppercase tracking-widest bg-black/80 px-2 py-1">
+                          {activeGift.name} Received
+                        </span>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             <div className="text-center">
               <p className="text-gray-text text-xs uppercase tracking-[0.4em]">Establishing Secure Node...</p>
@@ -167,6 +233,15 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
             {isVideoOn ? <VideoIcon className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
           </motion.button>
 
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setShowGifts(!showGifts)}
+            className={`p-4 rounded-none border transition-all ${showGifts ? 'border-[#FFD700] text-[#FFD700] bg-[#FFD700]/10' : 'border-white/10 text-off-white hover:border-neon-gold/30'}`}
+          >
+            <GiftIcon className="w-6 h-6" />
+          </motion.button>
+
           <div className="w-px h-10 bg-white/10 mx-2" />
 
           <motion.button 
@@ -196,6 +271,21 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
           <span className="hidden sm:inline">Terminate Connection</span>
         </motion.button>
       </div>
+
+      {/* Gift Selector Overlay */}
+      <AnimatePresence>
+        {showGifts && (
+          <motion.div 
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="absolute bottom-0 inset-x-0 z-50"
+          >
+            <GiftSelector onSendGift={handleSendGift} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Aesthetic Overlays */}
       <div className="absolute inset-0 pointer-events-none border-[40px] border-black/20 z-10" />

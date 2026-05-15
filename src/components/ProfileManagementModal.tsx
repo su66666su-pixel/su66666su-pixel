@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, User, Mail, MapPin, Shield, Check, Loader2, Crown } from 'lucide-react';
+import { X, User, Mail, MapPin, Shield, Check, Loader2, Crown, BadgeCheck, ShieldHalf } from 'lucide-react';
 import { supabase } from '../supabase';
+import AgentCenterModal from './AgentCenterModal';
 
 interface ProfileManagementModalProps {
   user: any;
@@ -17,6 +18,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
   const [isSearchingNearby, setIsSearchingNearby] = useState(false);
   const [isGeoVisible, setIsGeoVisible] = useState(false);
   const [nearbyUsers, setNearbyUsers] = useState<any[]>([]);
+  const [isAgentCenterOpen, setIsAgentCenterOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -128,9 +130,9 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
           // Simulation of search time
           setTimeout(() => {
             setNearbyUsers([
-              { id: '1', name: 'علي محمد', distance: '450 متر', avatar: 'Ali' },
-              { id: '2', name: 'سارة أحمد', distance: '1.2 كم', avatar: 'Sara' },
-              { id: '3', name: 'خالد القحطاني', distance: '3 كم', avatar: 'Khaled' }
+              { id: '1', name: 'علي محمد', distance: '450 متر', avatar: 'Ali', type: 'normal' },
+              { id: '2', name: 'سارة أحمد', distance: '1.2 كم', avatar: 'Sara', type: 'normal' },
+              { id: '3', name: 'خالد القحطاني', distance: '3 كم', avatar: 'Khaled', type: 'agent' }
             ]);
             setIsSearchingNearby(false);
           }, 2500);
@@ -145,6 +147,30 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
       alert("متصفحك لا يدعم ميزة الموقع الجغرافي. ❌");
     }
   };
+
+  const renderMapIcon = (profile: any) => {
+    if (profile.type === 'agent') {
+      return (
+        <div className="relative">
+          <div className="absolute -inset-2 bg-[#FFD700] rounded-full opacity-20 animate-ping" />
+          <div className="w-12 h-12 bg-[#0f0f0f] border-2 border-[#FFD700] rounded-full flex items-center justify-center shadow-[0_0_15px_#FFD700]">
+            <ShieldHalf className="w-6 h-6 text-[#FFD700]" />
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="relative">
+        <img 
+          src={`https://ui-avatars.com/api/?name=${profile.avatar}&background=000&color=D4AF37&bold=true`} 
+          alt={profile.name}
+          className="w-12 h-12 rounded-full border border-gray-600"
+        />
+        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-black" />
+      </div>
+    );
+  };
+
 
   return (
     <AnimatePresence>
@@ -244,6 +270,25 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                       />
                     </button>
                   </div>
+
+                  {/* Agent Center Shortcut */}
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-[#D4AF37]/5 to-transparent border border-[#D4AF37]/20 rounded-xl">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 flex items-center justify-center border border-[#D4AF37]/30 bg-[#D4AF37]/10">
+                        <BadgeCheck className="w-4 h-4 text-[#FFD700]" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white">مركز الوكيل المعتمد</p>
+                        <p className="text-[9px] text-gray-500 tracking-tighter">إدارة العمولات وروابط الدعوة الملكية</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setIsAgentCenterOpen(true)}
+                      className="bg-[#D4AF37] text-black px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg"
+                    >
+                      دخول
+                    </button>
+                  </div>
                 </section>
 
                 {/* Nearby Feature Section */}
@@ -322,25 +367,40 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                             key={profile.id}
                             initial={{ x: 20, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
-                            className="flex items-center justify-between bg-[#0f0f0f] p-4 rounded-2xl border border-[#D4AF37]/20 hover:border-[#FFD700] transition-all group cursor-pointer"
+                            className="w-full"
                           >
-                            <div className="flex items-center gap-4">
-                              <div className="relative">
-                                <img 
-                                  src={`https://ui-avatars.com/api/?name=${profile.avatar}&background=000&color=D4AF37&bold=true`} 
-                                  alt={profile.name}
-                                  className="w-12 h-12 rounded-full border border-[#FFD700]"
-                                />
-                                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-black"></span>
+                            {profile.type === 'agent' ? (
+                              <div className="bg-[#0f0f0f] border-2 border-[#FFD700] p-6 rounded-3xl text-center shadow-[0_0_30px_rgba(255,215,0,0.1)] relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-2 opacity-5">
+                                  <ShieldHalf className="w-12 h-12 text-[#FFD700]" />
+                                </div>
+                                <div className="text-[#FFD700] text-[10px] font-black mb-2 uppercase tracking-[0.2em]">وكيل معتمد بالقرب منك</div>
+                                <h3 className="text-white text-lg font-black mb-1">{profile.name} 👑</h3>
+                                <p className="text-gray-500 text-[10px] mb-6 font-medium">متوفر الآن لتوفير النقاط والاشتراكات السيادية</p>
+                                
+                                <div className="flex flex-col gap-2 relative z-10">
+                                    <button className="bg-[#FFD700] text-black py-3 rounded-xl font-black text-xs shadow-[0_5px_15px_rgba(255,215,0,0.3)] hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest">
+                                        طلب شحن رصيد فوراً
+                                    </button>
+                                    <button className="bg-[#1a1a1a] text-gray-400 py-2.5 rounded-xl text-[10px] border border-gray-800 font-bold hover:bg-gray-800 transition-colors">
+                                        مراسلة الوكيل
+                                    </button>
+                                </div>
                               </div>
-                              <div>
-                                <h4 className="text-white font-bold text-sm tracking-tight">{profile.name}</h4>
-                                <p className="text-[#D4AF37] text-[10px] font-medium">{profile.distance}</p>
+                            ) : (
+                              <div className="flex items-center justify-between bg-[#0f0f0f] p-4 rounded-2xl border border-[#D4AF37]/20 hover:border-[#FFD700] transition-all group cursor-pointer">
+                                <div className="flex items-center gap-4">
+                                  {renderMapIcon(profile)}
+                                  <div>
+                                    <h4 className="text-white font-bold text-sm tracking-tight">{profile.name}</h4>
+                                    <p className="text-[#D4AF37] text-[10px] font-medium">{profile.distance}</p>
+                                  </div>
+                                </div>
+                                <button className="bg-[#FFD700] text-black text-[10px] px-5 py-2 rounded-full font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity hover:scale-105 active:scale-95 shadow-[0_5px_15px_rgba(255,215,0,0.2)]">
+                                  مراسلة
+                                </button>
                               </div>
-                            </div>
-                            <button className="bg-[#FFD700] text-black text-[10px] px-5 py-2 rounded-full font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity hover:scale-105 active:scale-95 shadow-[0_5px_15px_rgba(255,215,0,0.2)]">
-                              مراسلة
-                            </button>
+                            )}
                           </motion.div>
                         ))}
                       </motion.div>
@@ -358,6 +418,12 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
           </motion.div>
         </div>
       )}
+
+      <AgentCenterModal 
+        isOpen={isAgentCenterOpen}
+        onClose={() => setIsAgentCenterOpen(false)}
+        username={username}
+      />
     </AnimatePresence>
   );
 }
