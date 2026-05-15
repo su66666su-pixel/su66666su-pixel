@@ -51,6 +51,7 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const messagesQuery = query(
@@ -107,6 +108,24 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
     if (url) {
       handleSendMessage(undefined, { url, type: 'image' });
     }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Simulate "Royal Upload" - in production this would go to Firebase Storage
+    // For this prototype, we'll use a local data URL for preview
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      const type = file.type.startsWith('video') ? 'video' : 'image';
+      handleSendMessage(undefined, { url: dataUrl, type: type as any });
+    };
+    reader.readAsDataURL(file);
+    
+    // Clear the input
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSendGift = async () => {
@@ -221,9 +240,16 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
       {/* Input Area */}
       <div className="p-8 border-t border-white/5 backdrop-blur-md bg-royal-black/50">
         <form onSubmit={(e) => handleSendMessage(e)} className="relative flex items-center gap-6">
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept="image/*,video/*"
+            className="hidden"
+          />
           <button 
             type="button" 
-            onClick={handleAttachImage}
+            onClick={() => fileInputRef.current?.click()}
             className="text-gray-text hover:text-neon-gold transition-colors"
           >
             <Paperclip className="w-6 h-6" />
