@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabase';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { 
   collection, 
@@ -31,6 +32,7 @@ import VideoCall from './VideoCall';
 import ActiveUsersSidebar from './ActiveUsersSidebar';
 import ProfileManagementModal from './ProfileManagementModal';
 import AdminDashboard from './AdminDashboard';
+import SubscriptionNotice from './SubscriptionNotice';
 
 interface ChatRoom {
   id: string;
@@ -105,8 +107,37 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [activeCall, setActiveCall] = useState<{ targetName: string } | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
+  const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
 
   useEffect(() => {
+    const checkUserSubscription = async (userId: string) => {
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('trial_ends_at, is_premium')
+          .eq('id', userId)
+          .single();
+
+        if (error) {
+          console.error("Subscription check failed", error);
+          return;
+        }
+
+        if (profile) {
+          const now = new Date();
+          const trialEnd = new Date(profile.trial_ends_at);
+
+          if (now > trialEnd && !profile.is_premium) {
+            setIsSubscriptionOpen(true);
+          }
+        }
+      } catch (err) {
+        console.error("Error in checkUserSubscription", err);
+      }
+    };
+
+    checkUserSubscription(user.uid);
+
     // Expose simulation function to window for the simulate button in ChatWindow
     (window as any).simulateIncomingCall = () => {
       setIncomingCall({ callerName: 'سلطان القحطاني' });
@@ -216,9 +247,10 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
       <aside className="w-20 md:w-24 royal-sidebar border-l flex flex-col items-center py-10 gap-10 bg-royal-black z-20">
         <motion.div 
           whileHover={{ scale: 1.1, rotate: 5 }}
-          className="relative"
+          onClick={() => setIsSubscriptionOpen(true)}
+          className="relative cursor-pointer"
         >
-          <div className="w-12 h-12 border-2 border-neon-gold flex items-center justify-center bg-dark-bg cursor-pointer shadow-[0_0_15px_rgba(255,215,0,0.2)]">
+          <div className="w-12 h-12 border-2 border-neon-gold flex items-center justify-center bg-dark-bg shadow-[0_0_15px_rgba(255,215,0,0.2)]">
             <Crown className="w-6 h-6 crown-icon" />
           </div>
           <div className="absolute inset-[-8px] border border-neon-gold/20 rounded-full animate-pulse" />
@@ -414,6 +446,10 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         user={user} 
         isOpen={isProfileOpen} 
         onClose={() => setIsProfileOpen(false)} 
+      />
+      <SubscriptionNotice 
+        isOpen={isSubscriptionOpen} 
+        onClose={() => setIsSubscriptionOpen(false)} 
       />
     </div>
   );

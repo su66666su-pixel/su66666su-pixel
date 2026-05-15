@@ -15,10 +15,13 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSearchingNearby, setIsSearchingNearby] = useState(false);
+  const [isGeoVisible, setIsGeoVisible] = useState(false);
+  const [nearbyUsers, setNearbyUsers] = useState<any[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       fetchProfile();
+      setNearbyUsers([]); // Reset when opening
     }
   }, [isOpen]);
 
@@ -34,14 +37,21 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
       if (data) {
         setUsername(data.username || user.displayName || '');
         setShowEmail(data.show_email || false);
+        setIsGeoVisible(data.is_geo_visible || false);
       } else if (error && error.code === 'PGRST116') {
         // Profile not found, create one
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 7); // 7 days trial
+
         const { error: createError } = await supabase
           .from('profiles')
           .insert({ 
             id: user.uid, 
             username: user.displayName || user.email?.split('@')[0],
-            show_email: false 
+            show_email: false,
+            is_premium: false,
+            trial_ends_at: trialEndDate.toISOString(),
+            is_geo_visible: false
           });
           
         if (createError) console.error("Error creating profile:", createError);
@@ -87,25 +97,52 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
     }
   };
 
+  const handleToggleGeoVisibility = async (isVisible: boolean) => {
+    setIsGeoVisible(isVisible);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_geo_visible: isVisible })
+        .eq('id', user.uid);
+
+      if (error) throw error;
+      console.log("تم تغيير حالة الظهور إلى:", isVisible ? "مرئي" : "مختفي");
+    } catch (err) {
+      console.error("Geo visibility toggle failed", err);
+      setIsGeoVisible(!isVisible); // Rollback
+    }
+  };
+
   const handleOpenNearby = () => {
+    if (!isGeoVisible) {
+      alert("يجب تفعيل وضع 'الظهور' أولاً لتتمكن من رؤية الآخرين ورؤيتهم لك! 👑");
+      return;
+    }
+
     if (navigator.geolocation) {
       setIsSearchingNearby(true);
+      setNearbyUsers([]);
       navigator.geolocation.getCurrentPosition(
         (position) => {
           console.log("جاري البحث عن أشخاص قرب إحداثياتك:", position.coords.latitude);
-          alert("جاري البحث عن مستخدمي SNNS القريبين منك... ✨");
-          // Here we would typically update the user's location in Supabase and query for nearby users
-          // using PostGIS: supabase.rpc('nearby_users', { lat: ..., lon: ... })
-          setTimeout(() => setIsSearchingNearby(false), 2000);
+          // Simulation of search time
+          setTimeout(() => {
+            setNearbyUsers([
+              { id: '1', name: 'علي محمد', distance: '450 متر', avatar: 'Ali' },
+              { id: '2', name: 'سارة أحمد', distance: '1.2 كم', avatar: 'Sara' },
+              { id: '3', name: 'خالد القحطاني', distance: '3 كم', avatar: 'Khaled' }
+            ]);
+            setIsSearchingNearby(false);
+          }, 2500);
         },
         (error) => {
           setIsSearchingNearby(false);
-          alert("يرجى تفعيل صلاحية الموقع لاستخدام هذه الميزة.");
+          alert("يرجى تفعيل صلاحية الموقع و الـ GPS لاستخدام هذه الميزة. 📍");
           console.error("Geolocation error:", error);
         }
       );
     } else {
-      alert("متصفحك لا يدعم ميزة الموقع الجغرافي.");
+      alert("متصفحك لا يدعم ميزة الموقع الجغرافي. ❌");
     }
   };
 
@@ -210,25 +247,105 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                 </section>
 
                 {/* Nearby Feature Section */}
-                <section className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MapPin className="w-4 h-4 text-neon-gold" />
-                    <h3 className="text-xs font-black uppercase tracking-widest text-gray-200">الاستكشاف الجغرافي</h3>
+                <section className="bg-[#111] p-6 rounded-2xl border border-[#D4AF37]/30 space-y-6">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                       <MapPin className="w-4 h-4 text-[#FFD700]" />
+                       <h3 className="text-sm font-bold text-[#FFD700]">الاستكشاف الجغرافي</h3>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${isGeoVisible ? 'text-green-500' : 'text-gray-500'}`}>
+                        {isGeoVisible ? 'مرئي للجميع' : 'مختفي الآن'}
+                      </span>
+                      <button 
+                        onClick={() => handleToggleGeoVisibility(!isGeoVisible)}
+                        className={`w-11 h-6 rounded-full relative transition-all duration-300 ${isGeoVisible ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-gray-700'}`}
+                        title={isGeoVisible ? 'تعطيل الظهور' : 'تفعيل الظهور'}
+                      >
+                        <motion.div 
+                          animate={{ x: isGeoVisible ? 22 : 2 }}
+                          className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-lg"
+                        />
+                      </button>
+                    </div>
                   </div>
-                  <button 
-                    onClick={handleOpenNearby}
-                    disabled={isSearchingNearby}
-                    className="w-full h-16 border border-neon-gold/20 hover:border-neon-gold hover:bg-neon-gold/5 flex flex-col items-center justify-center group transition-all disabled:opacity-50"
-                  >
-                    {isSearchingNearby ? (
-                      <Loader2 className="w-6 h-6 text-neon-gold animate-spin" />
-                    ) : (
-                      <>
-                        <p className="text-xs font-bold text-neon-gold group-hover:scale-105 transition-transform">البحث عن مستخدمين قريبين</p>
-                        <p className="text-[8px] text-gray-text mt-1">تفعيل ميزة القريبين مني عبر إحداثيات الملكية</p>
-                      </>
+
+                  <div className="relative">
+                    <button 
+                      onClick={handleOpenNearby}
+                      disabled={isSearchingNearby}
+                      className="w-full py-4 border-2 border-[#FFD700] text-[#FFD700] rounded-xl font-black text-xs uppercase tracking-widest hover:bg-[#FFD700] hover:text-black transition-all shadow-[0_0_15px_rgba(255,215,0,0.1)] active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isSearchingNearby ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <span>البحث عن مستخدمين قريبين</span>
+                          <span className="text-sm">✨</span>
+                        </>
+                      )}
+                    </button>
+
+                    <AnimatePresence>
+                      {isSearchingNearby && (
+                        <motion.div 
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          className="absolute inset-0 bg-[#0A0A0A] rounded-2xl border border-[#D4AF37]/20 shadow-2xl flex flex-col items-center justify-center z-10 p-4"
+                        >
+                          <div className="relative w-32 h-32 flex items-center justify-center">
+                            <div className="absolute inset-0 border-2 border-[#FFD700]/30 rounded-full animate-ping" />
+                            <div className="absolute inset-2 border-2 border-[#D4AF37]/50 rounded-full animate-pulse" />
+                            <MapPin className="w-10 h-10 text-[#FFD700] drop-shadow-[0_0_10px_rgba(255,215,0,0.5)]" />
+                            <div className="absolute inset-0 rounded-full border-t-2 border-[#FFD700] animate-spin opacity-60" />
+                          </div>
+                          <p className="mt-4 text-[#FFD700] font-bold text-sm animate-pulse">جاري مسح المنطقة بحثاً عن الملوك...</p>
+                          <p className="text-gray-500 text-[10px] mt-1 italic">البحث في نطاق 5 كم</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Nearby Results List */}
+                  <AnimatePresence>
+                    {nearbyUsers.length > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="grid grid-cols-1 gap-4 overflow-hidden pt-2"
+                      >
+                        {nearbyUsers.map((profile) => (
+                          <motion.div 
+                            key={profile.id}
+                            initial={{ x: 20, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            className="flex items-center justify-between bg-[#0f0f0f] p-4 rounded-2xl border border-[#D4AF37]/20 hover:border-[#FFD700] transition-all group cursor-pointer"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="relative">
+                                <img 
+                                  src={`https://ui-avatars.com/api/?name=${profile.avatar}&background=000&color=D4AF37&bold=true`} 
+                                  alt={profile.name}
+                                  className="w-12 h-12 rounded-full border border-[#FFD700]"
+                                />
+                                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-black"></span>
+                              </div>
+                              <div>
+                                <h4 className="text-white font-bold text-sm tracking-tight">{profile.name}</h4>
+                                <p className="text-[#D4AF37] text-[10px] font-medium">{profile.distance}</p>
+                              </div>
+                            </div>
+                            <button className="bg-[#FFD700] text-black text-[10px] px-5 py-2 rounded-full font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity hover:scale-105 active:scale-95 shadow-[0_5px_15px_rgba(255,215,0,0.2)]">
+                              مراسلة
+                            </button>
+                          </motion.div>
+                        ))}
+                      </motion.div>
                     )}
-                  </button>
+                  </AnimatePresence>
                 </section>
 
                 <div className="pt-6 border-t border-white/5 text-center">
