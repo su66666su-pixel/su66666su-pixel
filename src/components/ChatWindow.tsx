@@ -11,7 +11,8 @@ import {
   User as UserIcon,
   Sparkles,
   Phone,
-  Gift
+  Gift,
+  X
 } from 'lucide-react';
 import { 
   db, 
@@ -19,6 +20,7 @@ import {
   OperationType 
 } from '../firebase';
 import { handleGiftPurchase } from '../services/walletService';
+import { supabase } from '../supabase';
 import { 
   collection, 
   query, 
@@ -50,6 +52,9 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -110,22 +115,61 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Simulate "Royal Upload" - in production this would go to Firebase Storage
-    // For this prototype, we'll use a local data URL for preview
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      const type = file.type.startsWith('video') ? 'video' : 'image';
-      handleSendMessage(undefined, { url: dataUrl, type: type as any });
-    };
-    reader.readAsDataURL(file);
+    setPreviewFile(file);
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
     
-    // Clear the input
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!previewFile) return;
+
+    const file = previewFile;
+    const fileName = `${Date.now()}_${file.name}`;
+    const filePath = `uploads/${fileName}`;
+
+    setIsUploading(true);
+    try {
+      // 1. Upload to Supabase Storage
+      const { error } = await supabase.storage
+        .from('snns-files')
+        .upload(filePath, file);
+
+      if (error) {
+        alert("فشل الرفع الملكي: " + error.message);
+        return;
+      }
+
+      // 2. Get Public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('snns-files')
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicUrlData.publicUrl;
+      const type = file.type.startsWith('video') ? 'video' : 'image';
+
+      // 3. Send message
+      handleSendMessage(undefined, { url: publicUrl, type: type as any });
+      handleCancelUpload();
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("حدث خطأ أثناء الرفع الملكي.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleCancelUpload = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewFile(null);
+    setPreviewUrl(null);
   };
 
   const handleSendGift = async () => {
@@ -237,6 +281,47 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
         <div ref={scrollRef} />
       </div>
 
+      {/* Preview Container */}
+      <AnimatePresence>
+        {previewUrl && (
+          <motion.div 
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 50, opacity: 0 }}
+            className="relative p-6 bg-[#111] border-t border-dim-gold/50 flex flex-col items-center bg-royal-black/90 backdrop-blur-xl z-20"
+          >
+            <button 
+              onClick={handleCancelUpload}
+              className="absolute top-4 right-4 text-red-500 hover:text-red-400 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center">
+                <X className="w-5 h-5" /> 
+              </div>
+            </button>
+            
+            <div className="max-w-xs max-h-64 rounded-none overflow-hidden border-2 border-neon-gold shadow-[0_0_30px_rgba(255,215,0,0.2)] bg-black">
+              {previewFile?.type.startsWith('video') ? (
+                <video src={previewUrl} controls className="max-w-full" />
+              ) : (
+                <img src={previewUrl} alt="Preview" className="max-w-full" />
+              )}
+            </div>
+
+            <button 
+              onClick={handleConfirmUpload}
+              disabled={isUploading}
+              className={`
+                mt-6 bg-neon-gold text-royal-black px-12 py-3 rounded-none font-black uppercase tracking-widest text-xs
+                shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:scale-105 transition-all
+                ${isUploading ? 'uploading opacity-50' : ''}
+              `}
+            >
+              {isUploading ? 'جاري الرفع...' : 'إرسال الآن ✨'}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Input Area */}
       <div className="p-8 border-t border-white/5 backdrop-blur-md bg-royal-black/50">
         <form onSubmit={(e) => handleSendMessage(e)} className="relative flex items-center gap-6">
@@ -250,9 +335,10 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
           <button 
             type="button" 
             onClick={() => fileInputRef.current?.click()}
-            className="text-gray-text hover:text-neon-gold transition-colors"
+            disabled={isUploading}
+            className={`text-gray-text hover:text-neon-gold transition-colors ${isUploading ? 'uploading pointer-events-none' : ''}`}
           >
-            <Paperclip className="w-6 h-6" />
+            <Paperclip className={`w-6 h-6 ${isUploading ? 'animate-spin' : ''}`} />
           </button>
 
           <button 

@@ -1,21 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,700&family=Inter:wght@100;300;400;600;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,700&family=Inter:wght@100;300;400;600;900&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-serif: "Playfair Display", serif;
-  --font-sans: "Inter", sans-serif;
+  --font-sans: "Cairo", "Inter", sans-serif;
+  --font-cairo: "Cairo", sans-serif;
   --color-royal-black: #050505;
   --color-neon-gold: #FFD700;
   --color-dim-gold: #D4AF37;
   --color-dark-bg: #050505;
   --color-gold: #D4AF37;
-  --color-off-white: #F5F5F0;
+  --color-off-white: #e0e0e0;
   --color-gray-text: #8E9299;
+  --color-card-bg: #0f0f0f;
+}
+
+:root {
+  --main-bg: #050505;
+  --card-bg: #0f0f0f;
+  --royal-gold: #D4AF37;
+  --neon-gold: #FFD700;
+  --text-main: #e0e0e0;
+  --accent-glow: rgba(212, 175, 55, 0.15);
 }
 
 @layer base {
   body {
     @apply bg-royal-black text-white antialiased;
+  }
+  
+  table th { 
+    @apply font-normal text-[0.85rem]; 
+  }
+  
+  table td { 
+    @apply text-[0.95rem]; 
   }
 }
 
@@ -41,6 +60,39 @@
 
   .royal-input {
     @apply bg-[#111] border-[#333] text-neon-gold focus:border-neon-gold focus:ring-1 focus:ring-neon-gold/30 transition-all outline-none;
+  }
+
+  .uploading {
+    animation: goldPulse 1.5s infinite;
+  }
+
+  .online-pulse {
+    animation: neonPulse 2s infinite;
+  }
+
+  @keyframes neonPulse {
+    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  }
+
+  .private-account-glow {
+    filter: drop-shadow(0 0 2px rgba(212, 175, 55, 0.2));
+  }
+
+  .bg-card-glow {
+    background: radial-gradient(circle at center, rgba(212, 175, 55, 0.05) 0%, transparent 70%);
+  }
+
+  .btn-royal {
+    background: linear-gradient(135deg, #D4AF37 0%, #FFD700 100%);
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+  }
+
+  @keyframes goldPulse {
+    0% { box-shadow: 0 0 5px #D4AF37; }
+    50% { box-shadow: 0 0 20px #FFD700; }
+    100% { box-shadow: 0 0 5px #D4AF37; }
   }
 }
 

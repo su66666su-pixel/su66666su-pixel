@@ -9,7 +9,8 @@ import {
   CheckCheck,
   Loader2,
   ShieldAlert,
-  Phone
+  Phone,
+  LayoutDashboard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect } from 'react';
@@ -27,6 +28,9 @@ import {
 import ChatWindow from './ChatWindow';
 import IncomingCallModal from './IncomingCallModal';
 import VideoCall from './VideoCall';
+import ActiveUsersSidebar from './ActiveUsersSidebar';
+import ProfileManagementModal from './ProfileManagementModal';
+import AdminDashboard from './AdminDashboard';
 
 interface ChatRoom {
   id: string;
@@ -99,6 +103,8 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [incomingCall, setIncomingCall] = useState<{ callerName: string } | null>(null);
   const [activeCall, setActiveCall] = useState<{ targetName: string } | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isAdminView, setIsAdminView] = useState(false);
 
   useEffect(() => {
     // Expose simulation function to window for the simulate button in ChatWindow
@@ -190,6 +196,20 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
     }
   };
 
+  if (isAdminView) {
+    return (
+      <div className="relative w-full h-full">
+        <AdminDashboard />
+        <button 
+          onClick={() => setIsAdminView(false)}
+          className="fixed bottom-8 left-8 bg-neon-gold text-royal-black px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all z-[100]"
+        >
+          العودة للمحادثات
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-full bg-dark-bg text-off-white overflow-hidden selection:bg-gold selection:text-black">
       {/* Sidebar Navigation */}
@@ -215,7 +235,16 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           <button className="hover:text-gold transition-all hover:scale-110">
             <Users className="w-6 h-6" />
           </button>
-          <button className="hover:text-gold transition-all hover:scale-110">
+          <button 
+            onClick={() => setIsAdminView(true)}
+            className="hover:text-gold transition-all hover:scale-110"
+          >
+            <LayoutDashboard className="w-6 h-6" />
+          </button>
+          <button 
+            onClick={() => setIsProfileOpen(true)}
+            className="hover:text-gold transition-all hover:scale-110"
+          >
             <Settings className="w-6 h-6" />
           </button>
         </nav>
@@ -355,6 +384,9 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
             )}
           </AnimatePresence>
         </div>
+
+        {/* Active Users Sidebar */}
+        <ActiveUsersSidebar />
       </main>
       <AnimatePresence>
         {incomingCall && (
@@ -378,6 +410,11 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           />
         )}
       </AnimatePresence>
+      <ProfileManagementModal 
+        user={user} 
+        isOpen={isProfileOpen} 
+        onClose={() => setIsProfileOpen(false)} 
+      />
     </div>
   );
 }
