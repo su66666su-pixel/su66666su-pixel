@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user in the royal SNNS platform.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Unique identifier for the user." },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" },
+        "tier": { "type": "string", "enum": ["Royal", "Citizen"], "description": "The social status of the user." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "email"]
+    },
+    "ChatRoom": {
+      "title": "Chat Room",
+      "description": "A sovereign communication channel.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "isGroup": { "type": "boolean" },
+        "avatarUrl": { "type": "string", "format": "uri" },
+        "lastMessage": { "type": "string" },
+        "lastMessageTime": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "memberIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["name", "isGroup", "memberIds"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "An encrypted sovereign message.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "content": { "type": "string" },
+        "fileUrl": { "type": "string", "format": "uri" },
+        "fileType": { "type": "string", "enum": ["text", "image", "video", "file"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "senderName", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Public and private user profile data."
+    },
+    "/rooms/{roomId}": {
+      "schema": "ChatRoom",
+      "description": "Metadata for a chat room."
+    },
+    "/rooms/{roomId}/members/{userId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "role": { "type": "string", "enum": ["Owner", "Admin", "Member"] },
+          "joinedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "Membership in a specific chat room."
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages within a room."
+    }
+  }
+}
