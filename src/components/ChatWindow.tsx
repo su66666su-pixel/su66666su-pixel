@@ -124,20 +124,20 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] relative overflow-hidden">
+    <div className="flex flex-col h-full bg-royal-black relative overflow-hidden">
       {/* Header */}
-      <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between backdrop-blur-md bg-dark-bg/80 z-10">
+      <header className="px-8 py-6 border-b royal-sidebar flex items-center justify-between backdrop-blur-md bg-royal-black/80 z-10">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="lg:hidden text-gold p-2">
+          <button onClick={onBack} className="lg:hidden text-neon-gold p-2">
             <ChevronRight className="w-6 h-6" />
           </button>
-          <div className="w-12 h-12 border border-gold/30 p-0.5 bg-dark-bg">
+          <div className="w-12 h-12 border border-dim-gold/30 p-0.5 bg-dark-bg">
             <div className="w-full h-full flex items-center justify-center bg-white/5">
-              <span className="text-gold font-bold">{room.name.charAt(0)}</span>
+              <span className="text-neon-gold font-bold">{room.name.charAt(0)}</span>
             </div>
           </div>
           <div className="text-right" dir="rtl">
-            <h2 className="text-lg font-bold text-gold tracking-tight">{room.name}</h2>
+            <h2 className="text-lg font-bold text-neon-gold tracking-tight">{room.name}</h2>
             <div className="flex items-center gap-2 text-[10px] text-gray-text uppercase tracking-widest font-black">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
               قناة سيادية مشفرة
@@ -148,16 +148,16 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
         <div className="flex items-center gap-6">
           <button 
             onClick={() => (window as any).simulateIncomingCall?.()}
-            className="text-gray-text hover:text-gold transition-colors p-2"
+            className="text-gray-text hover:text-neon-gold transition-colors p-2"
             title="Simulate Call"
           >
             <Phone className="w-5 h-5" />
           </button>
-          <div className="hidden md:flex items-center gap-2 px-3 py-1 border border-gold/20 rounded-full">
-            <Shield className="w-3 h-3 text-gold" />
-            <span className="text-[10px] text-gold uppercase tracking-[0.2em]">E2EE Secured</span>
+          <div className="hidden md:flex items-center gap-2 px-3 py-1 border border-neon-gold/20 rounded-full">
+            <Shield className="w-3 h-3 text-neon-gold" />
+            <span className="text-[10px] text-neon-gold uppercase tracking-[0.2em]">E2EE Secured</span>
           </div>
-          <button className="text-gray-text hover:text-gold transition-colors">
+          <button className="text-gray-text hover:text-neon-gold transition-colors">
             <MoreVertical className="w-5 h-5" />
           </button>
         </div>
@@ -183,7 +183,7 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
                 <div className={`
                     px-5 py-3 text-sm leading-relaxed overflow-hidden
                     ${isOwn 
-                      ? 'bg-gold text-dark-bg font-semibold rounded-none rounded-tl-2xl' 
+                      ? 'bg-neon-gold text-royal-black font-semibold rounded-none rounded-tl-2xl' 
                       : 'bg-[#111] text-off-white border border-white/5 rounded-none rounded-tr-2xl'
                     }
                   `}
@@ -219,12 +219,12 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
       </div>
 
       {/* Input Area */}
-      <div className="p-8 border-t border-white/5 backdrop-blur-md bg-dark-bg/50">
+      <div className="p-8 border-t border-white/5 backdrop-blur-md bg-royal-black/50">
         <form onSubmit={(e) => handleSendMessage(e)} className="relative flex items-center gap-6">
           <button 
             type="button" 
             onClick={handleAttachImage}
-            className="text-gray-text hover:text-gold transition-colors"
+            className="text-gray-text hover:text-neon-gold transition-colors"
           >
             <Paperclip className="w-6 h-6" />
           </button>
@@ -232,7 +232,7 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
           <button 
             type="button" 
             onClick={handleSendGift}
-            className="text-gray-text hover:text-gold transition-colors"
+            className="text-gray-text hover:text-neon-gold transition-colors"
           >
             <Gift className="w-6 h-6" />
           </button>
@@ -244,9 +244,9 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="اكتب رسالة ملكية مشفرة..."
               dir="rtl"
-              className="w-full bg-[#0c0c0c] border border-white/10 px-8 py-4 text-sm focus:outline-none focus:border-gold/50 text-off-white transition-all placeholder:text-gray-text/30"
+              className="w-full royal-input px-8 py-4 text-sm"
             />
-            <div className="absolute inset-0 border border-gold/5 opacity-0 group-focus-within:opacity-100 pointer-events-none transition-opacity" />
+            <div className="absolute inset-0 border border-neon-gold/5 opacity-0 group-focus-within:opacity-100 pointer-events-none transition-opacity" />
           </div>
 
           <motion.button 
@@ -255,7 +255,7 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
             whileTap={{ scale: 0.95 }}
             className={`
               p-4 rounded-none transition-all duration-300
-              ${newMessage.trim() ? 'bg-gold text-dark-bg shadow-[0_0_15px_rgba(212,175,55,0.3)]' : 'bg-white/5 text-gray-text'}
+              ${newMessage.trim() ? 'bg-neon-gold text-royal-black shadow-[0_0_15px_rgba(255,215,0,0.3)]' : 'bg-white/5 text-gray-text'}
             `}
           >
             <Send className="w-6 h-6 rotate-180" />

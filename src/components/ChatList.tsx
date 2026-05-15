@@ -156,16 +156,35 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
     const name = prompt('اسم المحادثة الملكية الجديدة:');
     if (!name) return;
 
+    const isGroup = confirm('هل تريد جعلها محادثة جماعية؟');
+
     try {
-      await addDoc(collection(db, 'rooms'), {
+      const roomData = {
         name,
-        isGroup: false,
+        isGroup,
         memberIds: [user.uid],
         lastMessage: 'تم إنشاء المحادثة السيادية',
         lastMessageTime: serverTimestamp(),
         createdBy: user.uid,
         avatarUrl: ''
-      });
+      };
+
+      const docRef = await addDoc(collection(db, 'rooms'), roomData);
+      
+      alert(`تم تفعيل غرفة ${name} بنجاح ملكي! ✨`);
+
+      // Preparing the local object to transition immediately
+      const newRoom: ChatRoom = {
+        id: docRef.id,
+        name: roomData.name,
+        is_group: roomData.isGroup,
+        avatar_url: roomData.avatarUrl,
+        last_message: roomData.lastMessage,
+        last_message_time: 'الآن',
+        unread_count: 0
+      };
+
+      setSelectedRoom(newRoom);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'rooms');
     }
@@ -174,15 +193,15 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   return (
     <div className="flex h-screen w-full bg-dark-bg text-off-white overflow-hidden selection:bg-gold selection:text-black">
       {/* Sidebar Navigation */}
-      <aside className="w-20 md:w-24 border-l border-white/5 flex flex-col items-center py-10 gap-10 bg-[#080808] z-20">
+      <aside className="w-20 md:w-24 royal-sidebar border-l flex flex-col items-center py-10 gap-10 bg-royal-black z-20">
         <motion.div 
           whileHover={{ scale: 1.1, rotate: 5 }}
           className="relative"
         >
-          <div className="w-12 h-12 border-2 border-gold flex items-center justify-center bg-dark-bg cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.2)]">
-            <Crown className="w-6 h-6 text-gold" />
+          <div className="w-12 h-12 border-2 border-neon-gold flex items-center justify-center bg-dark-bg cursor-pointer shadow-[0_0_15px_rgba(255,215,0,0.2)]">
+            <Crown className="w-6 h-6 crown-icon" />
           </div>
-          <div className="absolute inset-[-8px] border border-gold/20 rounded-full animate-pulse" />
+          <div className="absolute inset-[-8px] border border-neon-gold/20 rounded-full animate-pulse" />
         </motion.div>
 
         <nav className="flex flex-col gap-10 text-gray-text text-xl">
@@ -222,31 +241,31 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
       <main className="flex-1 flex overflow-hidden">
         {/* Chat List Column */}
         <div className={`
-          flex flex-col bg-dark-bg border-l border-white/5 transition-all duration-500 z-10
+          flex flex-col bg-royal-black royal-sidebar border-l transition-all duration-500 z-10
           ${selectedRoom ? 'hidden lg:flex w-96' : 'flex w-full'}
         `}>
-          <header className="p-8 border-b border-white/5 backdrop-blur-sm bg-dark-bg/50">
+          <header className="p-8 border-b border-white/5 backdrop-blur-sm bg-royal-black/50">
             <div className="flex justify-between items-center mb-10">
               <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">
-                Chats <span className="text-gold block text-[10px] tracking-[0.4em] font-medium mt-1">Sovereign Messaging</span>
+                Chats <span className="text-neon-gold block text-[10px] tracking-[0.4em] font-medium mt-1">Sovereign Messaging</span>
               </h1>
               <motion.button 
                 onClick={handleCreateRoom}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                className="bg-gold text-dark-bg p-2 shrink-0 shadow-[0_0_10px_rgba(212,175,55,0.3)]"
+                className="bg-neon-gold text-royal-black p-2 shrink-0 shadow-[0_0_10px_rgba(255,215,0,0.3)]"
               >
                 <Plus className="w-5 h-5" />
               </motion.button>
             </div>
 
             <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gold/30 group-focus-within:text-gold transition-colors" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neon-gold/30 group-focus-within:text-neon-gold transition-colors" />
               <input 
                 type="text" 
                 placeholder="ابحث في سجلات السنس..." 
                 dir="rtl"
-                className="w-full bg-white/5 border border-white/10 px-10 py-3 text-sm focus:outline-none focus:border-gold/30 text-off-white font-medium transition-all"
+                className="w-full royal-input px-10 py-3 text-sm font-medium"
               />
             </div>
           </header>

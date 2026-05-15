@@ -66,12 +66,12 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
       {/* Encryption Header */}
       <div className="absolute top-0 inset-x-0 p-6 flex justify-between items-center z-20 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 border border-gold/30 flex items-center justify-center bg-dark-bg">
-            <Crown className="w-5 h-5 text-gold" />
+          <div className="w-10 h-10 border border-dim-gold/30 flex items-center justify-center bg-royal-black shadow-[0_0_15px_rgba(255,215,0,0.1)]">
+            <Crown className="w-5 h-5 crown-icon" />
           </div>
           <div className="text-right" dir="rtl">
-            <h2 className="text-gold font-bold tracking-tight text-sm uppercase">SNNS Sovereignty Bridge</h2>
-            <div className="flex items-center gap-2 text-[8px] text-gold/40 uppercase tracking-[0.3em]">
+            <h2 className="text-neon-gold font-bold tracking-tight text-sm uppercase text-shadow-gold">SNNS Sovereignty Bridge</h2>
+            <div className="flex items-center gap-2 text-[8px] text-neon-gold/40 uppercase tracking-[0.3em]">
               <Shield className="w-2 h-2" /> 
               AES-GCM 256bit Encrypted
             </div>
@@ -147,13 +147,13 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
       </div>
 
       {/* Floating Controls */}
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-6 px-10 py-6 bg-dark-bg/80 border border-gold/20 backdrop-blur-2xl z-30 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-6 px-10 py-6 bg-royal-black/80 border border-neon-gold/20 backdrop-blur-2xl z-30 shadow-[0_0_40px_rgba(0,0,0,0.6)]">
         <div className="flex items-center gap-4">
           <motion.button 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={toggleMic}
-            className={`p-4 rounded-none border transition-all ${isMicOn ? 'border-white/10 text-off-white hover:border-gold/30' : 'border-red-500/50 text-red-500 bg-red-500/10'}`}
+            className={`p-4 rounded-none border transition-all ${isMicOn ? 'border-white/10 text-off-white hover:border-neon-gold/30' : 'border-red-500/50 text-red-500 bg-red-500/10'}`}
           >
             {isMicOn ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
           </motion.button>
@@ -162,7 +162,7 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={toggleVideo}
-            className={`p-4 rounded-none border transition-all ${isVideoOn ? 'border-white/10 text-off-white hover:border-gold/30' : 'border-red-500/50 text-red-500 bg-red-500/10'}`}
+            className={`p-4 rounded-none border transition-all ${isVideoOn ? 'border-white/10 text-off-white hover:border-neon-gold/30' : 'border-red-500/50 text-red-500 bg-red-500/10'}`}
           >
             {isVideoOn ? <VideoIcon className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
           </motion.button>
@@ -172,7 +172,7 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
           <motion.button 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            className="p-4 rounded-none border border-white/10 text-off-white hover:border-gold/30 transition-all hidden md:flex"
+            className="p-4 rounded-none border border-white/10 text-off-white hover:border-neon-gold/30 transition-all hidden md:flex"
           >
             <Monitor className="w-6 h-6" />
           </motion.button>
@@ -180,7 +180,7 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
           <motion.button 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            className="p-4 rounded-none border border-white/10 text-off-white hover:border-gold/30 transition-all"
+            className="p-4 rounded-none border border-white/10 text-off-white hover:border-neon-gold/30 transition-all"
           >
             <Expand className="w-6 h-6" />
           </motion.button>

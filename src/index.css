@@ -4,15 +4,18 @@
 @theme {
   --font-serif: "Playfair Display", serif;
   --font-sans: "Inter", sans-serif;
-  --color-gold: #D4AF37;
+  --color-royal-black: #050505;
+  --color-neon-gold: #FFD700;
+  --color-dim-gold: #D4AF37;
   --color-dark-bg: #050505;
+  --color-gold: #D4AF37;
   --color-off-white: #F5F5F0;
   --color-gray-text: #8E9299;
 }
 
 @layer base {
   body {
-    @apply bg-dark-bg text-off-white;
+    @apply bg-royal-black text-white antialiased;
   }
 }
 
@@ -23,7 +26,21 @@
   }
   
   .text-shadow-gold {
-    text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  }
+
+  .crown-icon {
+    @apply text-neon-gold;
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5));
+  }
+
+  .royal-sidebar {
+    @apply border-dim-gold/30;
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.1);
+  }
+
+  .royal-input {
+    @apply bg-[#111] border-[#333] text-neon-gold focus:border-neon-gold focus:ring-1 focus:ring-neon-gold/30 transition-all outline-none;
   }
 }
 
