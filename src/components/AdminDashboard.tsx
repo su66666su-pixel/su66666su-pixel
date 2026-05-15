@@ -255,7 +255,7 @@ export default function AdminDashboard() {
              <p className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">تقييم المنصة</p>
              <h3 className="text-3xl font-black text-white mt-3 tracking-tighter">4.9/5.0</h3>
              <div className="mt-4 flex text-neon-gold gap-1">
-                {[1,2,3,4,5].map(i => <Star key={i} className="w-3.5 h-3.5 fill-current" />)}
+                {[1,2,3,4,5].map(i => <Star key={`stat-star-${i}`} className="w-3.5 h-3.5 fill-current" />)}
              </div>
           </motion.div>
         </div>
@@ -312,7 +312,7 @@ export default function AdminDashboard() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {joinRequests.map((request) => (
-                  <tr key={request.id} className="group hover:bg-white/[0.02] transition-all">
+                  <tr key={`request-${request.id}`} className="group hover:bg-white/[0.02] transition-all">
                     <td className="py-4">
                       <div className="flex items-center gap-3">
                         <div className="relative">

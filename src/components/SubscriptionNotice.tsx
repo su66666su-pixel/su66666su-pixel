@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Crown, X, Check, Star, Gem } from 'lucide-react';
 import { supabase } from '../supabase';
+import confetti from 'canvas-confetti';
 
 interface SubscriptionNoticeProps {
   user: any;
@@ -12,12 +13,40 @@ interface SubscriptionNoticeProps {
 export default function SubscriptionNotice({ user, isOpen, onClose }: SubscriptionNoticeProps) {
   const paypalContainerRef = React.useRef<HTMLDivElement>(null);
 
-  const activateRoyalFrame = async (subscriptionID: string) => {
+  const launchRoyalFireworks = () => {
+    const duration = 5 * 1000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 200 };
+
+    function randomInRange(min: number, max: number) {
+      return Math.random() * (max - min) + min;
+    }
+
+    const interval: any = setInterval(function() {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }, colors: ['#FFD700', '#D4AF37', '#FFFFFF'] });
+      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }, colors: ['#FFD700', '#D4AF37', '#FFFFFF'] });
+    }, 250);
+  };
+
+  const activateTier = async (planId: string, subscriptionID: string) => {
+    let tierName = "ذهبي";
+    if (planId === 'P-BRONZE') tierName = "برونزي";
+    if (planId === 'P-SILVER') tierName = "فضي";
+    if (planId === 'P-GOLD' || planId === 'P-23V643418K057153XNIDSGBY') tierName = "ذهبي";
+
     try {
       const { error } = await supabase
         .from('profiles')
         .update({ 
           is_premium: true,
+          subscription_tier: tierName,
           subscription_id: subscriptionID,
           updated_at: new Date().toISOString()
         })
@@ -25,13 +54,16 @@ export default function SubscriptionNotice({ user, isOpen, onClose }: Subscripti
 
       if (error) throw error;
       
-      alert("تهانينا! تم تفعيل البرواز الذهبي والصلاحيات السيادية بنجاح! 👑💎");
-      onClose();
-      // Optional: Force reload or better, update local state via a context or parent update
-      window.location.reload(); 
+      launchRoyalFireworks();
+      alert(`تهانينا! تم تفعيل رتبة الـ ${tierName} والبرواز الذهبي بنجاح! 👑💎`);
+      
+      setTimeout(() => {
+        onClose();
+        window.location.reload(); 
+      }, 5000);
     } catch (err) {
-      console.error("Failed to activate royal frame:", err);
-      alert("حدث خطأ أثناء تفعيل العضوية. يرجى مراسلة الدعم الفني.");
+      console.error("Failed to activate tier:", err);
+      alert("حدث خطأ أثناء تفعيل الرتبة. يرجى مراسلة الدعم الفني.");
     }
   };
 
@@ -42,11 +74,12 @@ export default function SubscriptionNotice({ user, isOpen, onClose }: Subscripti
     let script = document.getElementById(scriptId) as HTMLScriptElement;
 
     const initPayPalButtons = () => {
-      if (window.paypal && paypalContainerRef.current) {
+      const paypal = (window as any).paypal;
+      if (paypal && paypalContainerRef.current) {
         // Clear previous buttons if any
         paypalContainerRef.current.innerHTML = '';
         
-        window.paypal.Buttons({
+        paypal.Buttons({
           style: {
             shape: 'rect',
             color: 'gold',
@@ -59,7 +92,9 @@ export default function SubscriptionNotice({ user, isOpen, onClose }: Subscripti
             });
           },
           onApprove: (data: any, actions: any) => {
-            activateRoyalFrame(data.subscriptionID);
+            // Retrieve plan_id from the data or assume the one we provided
+            const planId = data.plan_id || 'P-23V643418K057153XNIDSGBY';
+            activateTier(planId, data.subscriptionID);
           },
           onError: (err: any) => {
             console.error('PayPal Error:', err);

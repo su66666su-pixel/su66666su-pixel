@@ -232,7 +232,7 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
           const isOwn = msg.senderId === user.uid;
           return (
             <motion.div
-              key={msg.id || idx}
+              key={`msg-${msg.id}-${idx}`}
               initial={{ opacity: 0, x: isOwn ? 20 : -20 }}
               animate={{ opacity: 1, x: 0 }}
               className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}

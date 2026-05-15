@@ -364,7 +364,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                       >
                         {nearbyUsers.map((profile) => (
                           <motion.div 
-                            key={profile.id}
+                            key={`nearby-${profile.id}`}
                             initial={{ x: 20, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
                             className="w-full"

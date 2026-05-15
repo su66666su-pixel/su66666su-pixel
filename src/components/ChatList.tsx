@@ -284,15 +284,22 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         </nav>
 
         <div className="mt-auto flex flex-col items-center gap-8">
-           <div className={`w-10 h-10 border p-0.5 rounded-none overflow-hidden group cursor-pointer relative ${userProfile?.is_premium ? 'border-[#FFD700] shadow-[0_0_15px_rgba(255,215,0,0.5)]' : 'border-gold/30'}`}>
-             {userProfile?.is_premium && (
-               <div className="absolute inset-0 border-2 border-[#FFD700] animate-pulse pointer-events-none z-10" />
+           <div className="flex flex-col items-center gap-1">
+             <div className={`w-10 h-10 border p-0.5 rounded-none overflow-hidden group cursor-pointer relative ${userProfile?.is_premium ? 'border-[#FFD700] shadow-[0_0_15px_rgba(255,215,0,0.5)]' : 'border-gold/30'}`}>
+               {userProfile?.is_premium && (
+                 <div className="absolute inset-0 border-2 border-[#FFD700] animate-pulse pointer-events-none z-10" />
+               )}
+               <img 
+                 src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=D4AF37&color=111`} 
+                 alt="Profile" 
+                 className={`w-full h-full object-cover transition-all ${userProfile?.is_premium ? 'grayscale-0' : 'grayscale group-hover:grayscale-0'}`}
+               />
+             </div>
+             {userProfile?.subscription_tier && (
+               <span className="text-[8px] text-[#FFD700] font-black uppercase tracking-tighter">
+                 {userProfile.subscription_tier}
+               </span>
              )}
-             <img 
-               src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=D4AF37&color=111`} 
-               alt="Profile" 
-               className={`w-full h-full object-cover transition-all ${userProfile?.is_premium ? 'grayscale-0' : 'grayscale group-hover:grayscale-0'}`}
-             />
            </div>
            <button 
              onClick={onLogout}
@@ -344,7 +351,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
             ) : (
               rooms.map((room) => (
                 <ChatItem 
-                  key={room.id}
+                  key={`room-${room.id}`}
                   room={room}
                   isActive={selectedRoom?.id === room.id}
                   onClick={() => setSelectedRoom(room)}
