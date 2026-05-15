@@ -10,8 +10,81 @@ import {
   TrendingUp, 
   ArrowUpRight 
 } from 'lucide-react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+// Register ChartJS
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 export default function AdminDashboard() {
+  const chartData = {
+    labels: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
+    datasets: [
+      {
+        label: 'الإيرادات اليومية',
+        data: [12000, 19000, 15000, 25000, 22000, 30000, 28000],
+        borderColor: '#D4AF37',
+        backgroundColor: 'rgba(212, 175, 55, 0.1)',
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#FFD700',
+        pointBorderColor: '#000',
+        pointHoverRadius: 6,
+      }
+    ]
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: '#0a0a0a',
+        titleColor: '#FFD700',
+        bodyColor: '#fff',
+        borderColor: '#D4AF37',
+        borderWidth: 1,
+        padding: 12,
+        displayColors: false,
+        rtl: true,
+        titleFont: { family: 'Cairo' },
+        bodyFont: { family: 'Cairo' },
+      }
+    },
+    scales: {
+      y: {
+        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+        ticks: { color: '#8E9299', font: { family: 'Cairo', size: 10 } }
+      },
+      x: {
+        grid: { display: false },
+        ticks: { color: '#8E9299', font: { family: 'Cairo', size: 10 } }
+      }
+    }
+  };
+
   const joinRequests = [
     {
       id: '1',
@@ -164,6 +237,71 @@ export default function AdminDashboard() {
              <div className="mt-4 flex text-neon-gold gap-0.5">
                 {[1,2,3,4,5].map(i => <Crown key={i} className="w-3 h-3 fill-current" />)}
              </div>
+          </motion.div>
+        </div>
+
+        {/* Charts & Secondary Stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="lg:col-span-2 bg-[#0f0f0f] p-8 rounded-2xl border border-white/5 shadow-2xl relative overflow-hidden"
+          >
+            <div className="flex justify-between items-center mb-10">
+              <div>
+                <h3 className="text-lg font-black text-white">إحصائيات النمو</h3>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Sovereign Revenue Analytics</p>
+              </div>
+              <div className="flex gap-2">
+                <span className="px-3 py-1 bg-[#D4AF37]/10 text-[#D4AF37] rounded-full text-[10px] font-bold border border-[#D4AF37]/20">أسبوعي</span>
+                <span className="px-3 py-1 bg-white/5 text-gray-500 rounded-full text-[10px] font-bold border border-white/5">شهري</span>
+              </div>
+            </div>
+            <div className="h-[300px] relative">
+              <Line data={chartData} options={chartOptions} />
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-[#0f0f0f] p-8 rounded-2xl border border-white/5 shadow-2xl flex flex-col justify-between"
+          >
+            <div>
+              <h3 className="text-lg font-black text-white mb-6">توزيع الأعضاء</h3>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">احترافية ملكية</span>
+                    <span className="text-[#D4AF37] font-bold">78%</span>
+                  </div>
+                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: '78%' }} className="h-full bg-[#D4AF37]" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">عضوية ذهبية</span>
+                    <span className="text-neon-gold font-bold">15%</span>
+                  </div>
+                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: '15%' }} className="h-full bg-neon-gold" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">مستخدم عادي</span>
+                    <span className="text-gray-500 font-bold">7%</span>
+                  </div>
+                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: '7%' }} className="h-full bg-gray-500" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button className="w-full py-4 mt-8 bg-white/5 border border-white/5 rounded-xl text-xs font-bold hover:bg-white/10 transition-all text-gray-300">
+              تصدير التقارير
+            </button>
           </motion.div>
         </div>
 
