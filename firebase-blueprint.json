@@ -44,12 +44,27 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["senderId", "senderName", "timestamp"]
+    },
+    "Wallet": {
+      "title": "Wallet",
+      "description": "Represents a user's golden wallet balance.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "balance": { "type": "integer", "minimum": 0 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "balance"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
       "description": "Public and private user profile data."
+    },
+    "/wallets/{userId}": {
+      "schema": "Wallet",
+      "description": "Sovereign wallet for golden points."
     },
     "/rooms/{roomId}": {
       "schema": "ChatRoom",

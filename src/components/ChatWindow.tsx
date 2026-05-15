@@ -10,13 +10,15 @@ import {
   Clock,
   User as UserIcon,
   Sparkles,
-  Phone
+  Phone,
+  Gift
 } from 'lucide-react';
 import { 
   db, 
   handleFirestoreError, 
   OperationType 
 } from '../firebase';
+import { handleGiftPurchase } from '../services/walletService';
 import { 
   collection, 
   query, 
@@ -104,6 +106,20 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
     const url = prompt('أدخل رابط الصورة الملكية:');
     if (url) {
       handleSendMessage(undefined, { url, type: 'image' });
+    }
+  };
+
+  const handleSendGift = async () => {
+    const giftName = prompt('اختر هدية (تاج: 100، نجمة: 50، ماسة: 200):');
+    if (!giftName) return;
+
+    let price = 50;
+    if (giftName.includes('تاج')) price = 100;
+    if (giftName.includes('ماسة')) price = 200;
+
+    const success = await handleGiftPurchase(user.uid, price);
+    if (success) {
+      handleSendMessage(undefined, { url: `GIFT:${giftName}`, type: 'file' as any });
     }
   };
 
@@ -211,6 +227,14 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
             className="text-gray-text hover:text-gold transition-colors"
           >
             <Paperclip className="w-6 h-6" />
+          </button>
+
+          <button 
+            type="button" 
+            onClick={handleSendGift}
+            className="text-gray-text hover:text-gold transition-colors"
+          >
+            <Gift className="w-6 h-6" />
           </button>
           
           <div className="relative flex-1 group">

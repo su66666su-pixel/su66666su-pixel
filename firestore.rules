@@ -39,6 +39,25 @@ service cloud.firestore {
                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'tier']);
     }
 
+    // --- WALLETS COLLECTION ---
+    match /wallets/{uid} {
+      function isValidWallet(data) {
+        return data.userId == uid &&
+               data.balance is int && data.balance >= 0 &&
+               data.updatedAt == request.time;
+      }
+
+      allow get: if isVerified() && userId() == uid;
+      // Creation might happen via cloud function or initial setup, 
+      // but for demo we'll allow self-create if balance is 0 or initial gift
+      allow create: if isVerified() && userId() == uid && isValidWallet(incoming());
+      
+      // Update: balance deduction
+      allow update: if isVerified() && userId() == uid && 
+                      isValidWallet(incoming()) &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['balance', 'updatedAt']);
+    }
+
     // --- ROOMS COLLECTION ---
     match /rooms/{roomId} {
       function isValidRoom(data) {

@@ -90,9 +90,9 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
       </div>
 
       {/* Video Grid */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-8 pt-32 pb-32 h-full">
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 p-4 pt-32 pb-32 h-full bg-black">
         {/* Local Stream (Host) */}
-        <div className="relative group overflow-hidden border-2 border-gold/50 bg-[#050505] shadow-[0_0_30px_rgba(212,175,55,0.1)]">
+        <div className="relative group overflow-hidden border-2 border-[#FFD700] bg-[#050505] shadow-[0_0_30px_rgba(255,215,0,0.1)]">
           <video 
             ref={localVideoRef} 
             autoPlay 
@@ -105,8 +105,8 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
                <VideoOff className="w-16 h-16 text-gold/10" />
             </div>
           )}
-          <div className="absolute bottom-6 right-6 bg-gold text-dark-bg px-4 py-1 text-[10px] uppercase font-black tracking-widest">
-            Host / المضيف
+          <div className="absolute bottom-2 right-2 bg-black/50 px-2 text-xs py-1 text-off-white font-medium" dir="rtl">
+            المضيف
           </div>
           <div className="absolute top-6 left-6 flex gap-2">
              {!isMicOn && <MicOff className="w-4 h-4 text-red-500 fill-red-500/20" />}
@@ -115,8 +115,8 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
           <div className="absolute inset-0 pointer-events-none opacity-[0.05] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
         </div>
 
-        {/* Remote Stream (Guest - Placeholder) */}
-        <div className="relative group overflow-hidden border border-white/10 bg-[#080808] transition-all duration-500">
+        {/* Remote Stream (Guest - Placeholder or Real) */}
+        <div className="relative group overflow-hidden border border-gray-600 bg-[#080808] transition-all duration-500">
           <div className="absolute inset-0 flex flex-col items-center justify-center space-y-6">
             <div className="w-32 h-32 border border-white/5 p-2 bg-[#0c0c0c] relative">
               <img 
@@ -140,8 +140,8 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
               </div>
             </div>
           </div>
-          <div className="absolute bottom-6 right-6 bg-white/10 text-off-white/50 px-4 py-1 text-[10px] uppercase font-black tracking-widest italic outline outline-1 outline-white/5">
-            Guest / الضيف
+          <div className="absolute bottom-2 right-2 bg-black/50 px-2 text-xs py-1 text-off-white font-medium" dir="rtl">
+            الضيف
           </div>
         </div>
       </div>

@@ -12,7 +12,7 @@ import {
   Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { 
   collection, 
@@ -44,7 +44,7 @@ interface ChatItemProps {
   onClick: () => void;
 }
 
-function ChatItem({ room, isActive, onClick }: ChatItemProps) {
+const ChatItem: React.FC<ChatItemProps> = ({ room, isActive, onClick }) => {
   return (
     <motion.div 
       onClick={onClick}
