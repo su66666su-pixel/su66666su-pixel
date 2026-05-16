@@ -32,9 +32,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
       <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-3 w-full max-w-md px-4 pointer-events-none">
         <AnimatePresence>
-          {toasts.map((toast) => (
+          {toasts.map((toast, idx) => (
             <motion.div
-              key={toast.id}
+              key={`${toast.id}-${idx}`}
               initial={{ y: 20, opacity: 0, scale: 0.9 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: -10, opacity: 0, scale: 0.9 }}

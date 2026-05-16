@@ -196,7 +196,7 @@ export default function SubscriptionNotice({ user, isOpen, onClose }: Subscripti
                     
                     <ul className="space-y-4 mb-10 flex-1 text-sm text-gray-400">
                       {tier.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-center gap-3">
+                        <li key={`${tier.id}-feature-${idx}`} className="flex items-center gap-3">
                           <Check className={`w-4 h-4 ${tier.isPremium ? 'text-[#FFD700]' : 'text-[#D4AF37]'}`} />
                           <span className={tier.isPremium ? 'text-gray-200 font-medium' : ''}>{feature}</span>
                         </li>

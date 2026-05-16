@@ -49,9 +49,9 @@ export default function GiftSelector({ onSendGift, onClose }: GiftSelectorProps)
         </div>
 
         <div className="grid grid-cols-3 gap-3 mb-8">
-          {GIFTS.map((gift) => (
+          {GIFTS.map((gift, idx) => (
             <motion.button
-              key={gift.id}
+              key={`${gift.id}-${idx}`}
               whileHover={{ scale: 1.05, borderColor: '#FFD700', backgroundColor: 'rgba(255, 215, 0, 0.05)' }}
               whileTap={{ scale: 0.95 }}
               onClick={() => onSendGift(gift)}

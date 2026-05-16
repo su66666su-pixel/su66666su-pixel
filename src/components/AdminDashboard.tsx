@@ -40,32 +40,71 @@ ChartJS.register(
 export default function AdminDashboard() {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [subscriberCount, setSubscriberCount] = useState(0);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const fetchFinancialStats = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('coin_transactions')
-          .select('amount')
-          .eq('transaction_type', 'subscription');
+    const checkProtection = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        window.location.href = '/';
+        return;
+      }
 
-        if (error) {
-          console.error("Error fetching financial stats:", error);
-          return;
-        }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
-        if (data) {
-          const total = data.reduce((sum, item) => sum + (item.amount || 0), 0);
-          setTotalRevenue(total);
-          setSubscriberCount(data.length);
-        }
-      } catch (err) {
-        console.error("Unexpected error fetching stats:", err);
+      if (!profile || profile.role !== 'admin') {
+        alert("⚠️ عذراً يا ملك، هذه المنطقة مخصصة للإدارة العليا فقط!");
+        window.location.href = '/';
+      } else {
+        setIsAuthorized(true);
       }
     };
 
-    fetchFinancialStats();
+    checkProtection();
   }, []);
+
+  useEffect(() => {
+    if (isAuthorized) {
+      const fetchFinancialStats = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('coin_transactions')
+            .select('amount')
+            .eq('transaction_type', 'subscription');
+
+          if (error) {
+            console.error("Error fetching financial stats:", error);
+            return;
+          }
+
+          if (data) {
+            const total = data.reduce((sum, item) => sum + (item.amount || 0), 0);
+            setTotalRevenue(total);
+            setSubscriberCount(data.length);
+          }
+        } catch (err) {
+          console.error("Unexpected error fetching stats:", err);
+        }
+      };
+
+      fetchFinancialStats();
+    }
+  }, [isAuthorized]);
+
+  if (isAuthorized === null) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#050505]">
+        <div className="w-12 h-12 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) return null;
 
   const chartData = {
     labels: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
@@ -255,7 +294,7 @@ export default function AdminDashboard() {
              <p className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">تقييم المنصة</p>
              <h3 className="text-3xl font-black text-white mt-3 tracking-tighter">4.9/5.0</h3>
              <div className="mt-4 flex text-neon-gold gap-1">
-                {[1,2,3,4,5].map(i => <Star key={`stat-star-${i}`} className="w-3.5 h-3.5 fill-current" />)}
+                {[1,2,3,4,5].map((i, idx) => <Star key={`stat-star-${i}-${idx}`} className="w-3.5 h-3.5 fill-current" />)}
              </div>
           </motion.div>
         </div>
@@ -311,8 +350,8 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {joinRequests.map((request) => (
-                  <tr key={`request-${request.id}`} className="group hover:bg-white/[0.02] transition-all">
+                {joinRequests.map((request, idx) => (
+                  <tr key={`request-${request.id}-${idx}`} className="group hover:bg-white/[0.02] transition-all">
                     <td className="py-4">
                       <div className="flex items-center gap-3">
                         <div className="relative">

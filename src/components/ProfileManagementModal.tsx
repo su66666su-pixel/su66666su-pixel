@@ -179,7 +179,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
       if (isVisible && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
-            await supabase
+            const { error } = await supabase
               .from('profiles')
               .update({ 
                 is_geo_visible: true,
@@ -188,21 +188,36 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                 last_position_update: new Date().toISOString()
               })
               .eq('id', user.uid);
+            
+            if (!error) {
+              showToast("📡 تم تفعيل ظهورك الرقمي على الرادار الجغرافي", 'royal');
+            }
           },
-          (err) => console.error("Initial geo update failed", err)
+          (err) => {
+            console.error("Initial geo update failed", err);
+            showToast("يرجى تفعيل صلاحية الموقع لتظهر للآخرين! 📍", 'error');
+          }
         );
       } else {
         const { error } = await supabase
           .from('profiles')
           .update(updates)
           .eq('id', user.uid);
+        
         if (error) throw error;
+        
+        if (!isVisible) {
+          showToast("🥷 تم تفعيل وضع الشبح.. أنت مخفي الآن", 'royal');
+        } else {
+          showToast("📡 تم تفعيل ظهورك الرقمي على الرادار الجغرافي", 'royal');
+        }
       }
 
       console.log("تم تغيير حالة الظهور إلى:", isVisible ? "مرئي" : "مختفي");
     } catch (err) {
       console.error("Geo visibility toggle failed", err);
       setIsGeoVisible(!isVisible); // Rollback
+      showToast("فشل تحديث حالة الظهور الجغرافي", 'error');
     }
   };
 
@@ -574,9 +589,9 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                         exit={{ opacity: 0, height: 0 }}
                         className="grid grid-cols-1 gap-4 overflow-hidden pt-2"
                       >
-                        {nearbyUsers.map((profile) => (
+                        {nearbyUsers.map((profile, idx) => (
                           <motion.div 
-                            key={`nearby-${profile.id}`}
+                            key={`nearby-${profile.id}-${idx}`}
                             initial={{ x: 20, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
                             className="w-full"

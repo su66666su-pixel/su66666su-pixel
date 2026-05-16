@@ -33,6 +33,7 @@ import ActiveUsersSidebar from './ActiveUsersSidebar';
 import ProfileManagementModal from './ProfileManagementModal';
 import AdminDashboard from './AdminDashboard';
 import SubscriptionNotice from './SubscriptionNotice';
+import { useToast } from './Toast';
 
 interface ChatRoom {
   id: string;
@@ -109,6 +110,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [isAdminView, setIsAdminView] = useState(false);
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     const fetchUserProfile = async (userId: string) => {
@@ -271,7 +273,13 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
             <Users className="w-6 h-6" />
           </button>
           <button 
-            onClick={() => setIsAdminView(true)}
+            onClick={() => {
+              if (userProfile?.role === 'admin') {
+                setIsAdminView(true);
+              } else {
+                showToast("⚠️ عذراً يا ملك، هذه المنطقة مخصصة للإدارة العليا فقط!", "error");
+              }
+            }}
             className="hover:text-gold transition-all hover:scale-110"
           >
             <LayoutDashboard className="w-6 h-6" />
@@ -350,9 +358,9 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
                 <Loader2 className="w-8 h-8 text-gold animate-spin" />
               </div>
             ) : (
-              rooms.map((room) => (
+              rooms.map((room, idx) => (
                 <ChatItem 
-                  key={`room-${room.id}`}
+                  key={`room-${room.id}-${idx}`}
                   room={room}
                   isActive={selectedRoom?.id === room.id}
                   onClick={() => setSelectedRoom(room)}

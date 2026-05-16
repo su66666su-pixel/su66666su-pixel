@@ -29,9 +29,9 @@ export default function ActiveUsersSidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        {activeUsers.map((user) => (
+        {activeUsers.map((user, idx) => (
           <motion.div 
-            key={`active-${user.id}`}
+            key={`active-${user.id}-${idx}`}
             whileHover={{ backgroundColor: "rgba(212, 175, 55, 0.1)" }}
             className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer group ${user.isPrivate ? 'grayscale-[0.5]' : ''}`}
             dir="rtl"
