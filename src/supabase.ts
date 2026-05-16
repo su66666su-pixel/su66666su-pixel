@@ -8,4 +8,4 @@ if (!supabaseKey) {
     console.error("⚠️ تنبيه السيادة: المفتاح الملكي لـ Supabase غير معرف في إعدادات الاستضافة بعد!");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey || '')
+export const supabase = createClient(supabaseUrl, supabaseKey)
