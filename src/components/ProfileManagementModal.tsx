@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, User, Mail, MapPin, Shield, Check, Loader2, Crown, BadgeCheck, ShieldHalf } from 'lucide-react';
+import { X, User, Mail, MapPin, Shield, Check, Loader2, Crown, BadgeCheck, ShieldHalf, Medal, Gift, Flame, ShieldCheck } from 'lucide-react';
 import { supabase } from '../supabase';
 import AgentCenterModal from './AgentCenterModal';
 
@@ -18,6 +18,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
   const [isSearchingNearby, setIsSearchingNearby] = useState(false);
   const [isGeoVisible, setIsGeoVisible] = useState(false);
   const [nearbyUsers, setNearbyUsers] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [isAgentCenterOpen, setIsAgentCenterOpen] = useState(false);
 
   useEffect(() => {
@@ -37,6 +38,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
         .single();
 
       if (data) {
+        setUserProfile(data);
         setUsername(data.username || user.displayName || '');
         setShowEmail(data.show_email || false);
         setIsGeoVisible(data.is_geo_visible || false);
@@ -231,7 +233,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="أدخل الاسم الجديد..."
-                      className="flex-1 royal-input px-4 py-3 text-sm"
+                      className={`flex-1 royal-input px-4 py-3 text-sm ${userProfile?.subscription_tier === 'ذهبي' ? 'neon-text-glow' : ''}`}
                     />
                     <button 
                       onClick={handleUpdateUsername}
@@ -240,6 +242,53 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                     >
                       {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'تحديث'}
                     </button>
+                  </div>
+                </section>
+
+                {/* Badges Section */}
+                <section className="p-6 bg-[#0a0a0a] border border-[#222] rounded-3xl">
+                  <h3 className="text-[#FFD700] text-lg font-bold mb-6 flex items-center gap-2">
+                    <Medal className="w-5 h-5" /> نياشين السيادة
+                  </h3>
+                  
+                  <div className="grid grid-cols-4 gap-4">
+                    {/* Founder Badge */}
+                    <div className="group text-center cursor-help" title="وسام المؤسس: يُمنح فقط للنخبة الأولى">
+                      <div className="relative w-14 h-14 mx-auto mb-2 bg-gradient-to-b from-[#FFD700] to-[#D4AF37] rounded-full p-0.5 shadow-[0_0_15px_rgba(255,215,0,0.3)] group-hover:scale-110 transition-transform">
+                        <div className="bg-[#050505] w-full h-full rounded-full flex items-center justify-center relative overflow-hidden">
+                          <Crown className="w-6 h-6 text-[#FFD700]" />
+                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                        </div>
+                      </div>
+                      <span className="text-[9px] text-gray-400 font-bold">المؤسس</span>
+                    </div>
+
+                    {/* Generous Badge (Locked) */}
+                    <div className="text-center opacity-30 grayscale cursor-not-allowed" title="أهدِ 10 رتب لفتح هذا الوسام">
+                      <div className="w-14 h-14 mx-auto mb-2 bg-gray-800 rounded-full flex items-center justify-center border-2 border-dashed border-gray-600">
+                        <Gift className="w-6 h-6 text-gray-500" />
+                      </div>
+                      <span className="text-[9px] text-gray-500 font-bold">سخي</span>
+                    </div>
+
+                    {/* Leader Badge (Locked) */}
+                    <div className="text-center opacity-30 grayscale cursor-not-allowed" title="تصدّر لوحة الشرف لفتحه">
+                      <div className="w-14 h-14 mx-auto mb-2 bg-gray-800 rounded-full flex items-center justify-center border-2 border-dashed border-gray-600">
+                        <Flame className="w-6 h-6 text-gray-500" />
+                      </div>
+                      <span className="text-[9px] text-gray-500 font-bold">متصدر</span>
+                    </div>
+
+                    {/* Verified Badge */}
+                    <div className="group text-center cursor-help" title="حساب موثق عبر نفاذ">
+                      <div className="w-14 h-14 mx-auto mb-2 bg-gradient-to-b from-[#00A3FF] to-[#0057FF] rounded-full p-0.5 shadow-[0_0_15px_rgba(0,163,255,0.3)] group-hover:scale-110 transition-transform">
+                        <div className="bg-[#050505] w-full h-full rounded-full flex items-center justify-center relative overflow-hidden">
+                          <ShieldCheck className="w-6 h-6 text-[#00A3FF]" />
+                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                        </div>
+                      </div>
+                      <span className="text-[9px] text-gray-400 font-bold">موثق</span>
+                    </div>
                   </div>
                 </section>
 

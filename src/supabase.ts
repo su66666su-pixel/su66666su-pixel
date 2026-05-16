@@ -1,10 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// جلب المتغيرات سواء من السيرفر أو المحيط المحلي
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://coxcxznylmlpxhusynmj.supabase.co'
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY 
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase credentials missing. File uploads may not work until configured in settings.');
+if (!supabaseKey) {
+    console.error("⚠️ تنبيه السيادة: المفتاح الملكي لـ Supabase غير معرف في إعدادات الاستضافة بعد!");
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+export const supabase = createClient(supabaseUrl, supabaseKey || '')

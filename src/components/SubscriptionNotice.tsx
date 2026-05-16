@@ -12,6 +12,7 @@ interface SubscriptionNoticeProps {
 
 export default function SubscriptionNotice({ user, isOpen, onClose }: SubscriptionNoticeProps) {
   const paypalContainerRef = React.useRef<HTMLDivElement>(null);
+  const [selectedTier, setSelectedTier] = React.useState<string | null>(null);
 
   const launchRoyalFireworks = () => {
     const duration = 5 * 1000;
@@ -34,6 +35,34 @@ export default function SubscriptionNotice({ user, isOpen, onClose }: Subscripti
       confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }, colors: ['#FFD700', '#D4AF37', '#FFFFFF'] });
     }, 250);
   };
+
+  const TIERS = [
+    {
+      id: 'P-BRONZE',
+      name: 'الملك البرونزي',
+      price: '10',
+      emoji: '🥉',
+      color: '#D4AF37',
+      features: ['البرواز الذهبي الأساسي', 'شارة التاج البرونزي', 'مكالمات فيديو HD'],
+    },
+    {
+      id: 'P-23V643418K057153XNIDSGBY',
+      name: 'الملك الذهبي',
+      price: '99',
+      emoji: '👑',
+      color: '#FFD700',
+      isPremium: true,
+      features: ['الاسم المتوهج بالنيون', '5000 نقطة هدايا شهرياً', 'أولوية قصوى في الخريطة', 'سحب أرباح بدون عمولة'],
+    },
+    {
+      id: 'P-SILVER',
+      name: 'الملك الفضي',
+      price: '35',
+      emoji: '🥈',
+      color: '#C0C0C0',
+      features: ['برواز نيوني متحرك', 'معرفة زوار البروفايل', '1000 نقطة هدايا'],
+    },
+  ];
 
   const activateTier = async (planId: string, subscriptionID: string) => {
     let tierName = "ذهبي";
@@ -68,7 +97,7 @@ export default function SubscriptionNotice({ user, isOpen, onClose }: Subscripti
   };
 
   React.useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !selectedTier) return;
 
     const scriptId = 'paypal-sdk-script';
     let script = document.getElementById(scriptId) as HTMLScriptElement;
@@ -76,7 +105,6 @@ export default function SubscriptionNotice({ user, isOpen, onClose }: Subscripti
     const initPayPalButtons = () => {
       const paypal = (window as any).paypal;
       if (paypal && paypalContainerRef.current) {
-        // Clear previous buttons if any
         paypalContainerRef.current.innerHTML = '';
         
         paypal.Buttons({
@@ -88,13 +116,11 @@ export default function SubscriptionNotice({ user, isOpen, onClose }: Subscripti
           },
           createSubscription: (data: any, actions: any) => {
             return actions.subscription.create({
-              plan_id: 'P-23V643418K057153XNIDSGBY'
+              plan_id: selectedTier
             });
           },
           onApprove: (data: any, actions: any) => {
-            // Retrieve plan_id from the data or assume the one we provided
-            const planId = data.plan_id || 'P-23V643418K057153XNIDSGBY';
-            activateTier(planId, data.subscriptionID);
+            activateTier(selectedTier, data.subscriptionID);
           },
           onError: (err: any) => {
             console.error('PayPal Error:', err);
@@ -112,21 +138,20 @@ export default function SubscriptionNotice({ user, isOpen, onClose }: Subscripti
       script.onload = initPayPalButtons;
       document.head.appendChild(script);
     } else {
-      // Small delay to ensure the modal is fully rendered and the ref is attached
       const timer = setTimeout(initPayPalButtons, 100);
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, selectedTier]);
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 overflow-y-auto bg-black/95 backdrop-blur-xl">
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/95 backdrop-blur-xl"
+            className="absolute inset-0"
             onClick={onClose}
           />
           
@@ -134,63 +159,80 @@ export default function SubscriptionNotice({ user, isOpen, onClose }: Subscripti
             initial={{ scale: 0.8, opacity: 0, y: 30 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: 30 }}
-            className="relative bg-[#0f0f0f] border-2 border-[#D4AF37] rounded-[3rem] p-10 max-w-sm w-full text-center shadow-[0_0_60px_rgba(212,175,55,0.15)] overflow-y-auto max-h-[90vh]"
+            className="relative bg-[#050505] p-8 md:p-12 max-w-6xl w-full rounded-[3rem] shadow-[0_0_100px_rgba(255,215,0,0.1)] min-h-[80vh] flex flex-col"
             dir="rtl"
           >
-            {/* Background elements */}
-            <div className="absolute -top-20 -left-20 w-40 h-40 bg-[#FFD700] opacity-10 blur-[80px]" />
-            
             <button 
               onClick={onClose}
-              className="absolute top-8 left-8 text-gray-600 hover:text-[#FFD700] transition-colors z-20"
+              className="absolute top-8 left-8 text-gray-500 hover:text-[#FFD700] transition-colors z-20"
             >
-              <X className="w-6 h-6" />
+              <X className="w-8 h-8" />
             </button>
 
-            <div className="mb-6 relative z-10">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-b from-[#FFD700] to-[#D4AF37] shadow-[0_0_25px_rgba(255,215,0,0.4)] mb-4 animate-pulse">
-                <Gem className="text-black w-10 h-10" />
+            <div className="text-center mb-12">
+              <h1 className="text-4xl md:text-5xl font-black text-[#FFD700] mb-4">اختر رتبتك في نظام السيادة</h1>
+              <p className="text-gray-500 font-medium">انضم إلى طبقة الملوك واستمتع بمميزات لا محدودة</p>
+            </div>
+
+            {!selectedTier ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 flex-1">
+                {TIERS.map((tier) => (
+                  <motion.div
+                    key={tier.id}
+                    whileHover={{ y: -10 }}
+                    className={`bg-[#0f0f0f] p-8 rounded-[2.5rem] flex flex-col transition-all cursor-pointer relative ${tier.isPremium ? 'border-2 border-[#FFD700] scale-105 shadow-[0_0_50px_rgba(255,215,0,0.15)]' : 'border border-gray-800 hover:border-[#D4AF37]'}`}
+                    onClick={() => setSelectedTier(tier.id)}
+                  >
+                    {tier.isPremium && (
+                      <div className="absolute -top-4 right-1/2 translate-x-1/2 bg-[#FFD700] text-black text-[10px] px-4 py-1 rounded-full font-black uppercase tracking-widest">
+                        الأكثر فخامة
+                      </div>
+                    )}
+                    <div className="text-4xl mb-6">{tier.emoji}</div>
+                    <h3 className={`text-2xl font-bold mb-2 ${tier.isPremium ? 'text-[#FFD700]' : 'text-white'}`}>{tier.name}</h3>
+                    <div className="text-4xl font-black text-white mb-8">
+                      {tier.price} <span className="text-xs text-gray-500 font-medium">ر.س / شهر</span>
+                    </div>
+                    
+                    <ul className="space-y-4 mb-10 flex-1 text-sm text-gray-400">
+                      {tier.features.map((feature, idx) => (
+                        <li key={idx} className="flex items-center gap-3">
+                          <Check className={`w-4 h-4 ${tier.isPremium ? 'text-[#FFD700]' : 'text-[#D4AF37]'}`} />
+                          <span className={tier.isPremium ? 'text-gray-200 font-medium' : ''}>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <button className={`w-full py-4 rounded-2xl font-black text-sm tracking-widest transition-all ${tier.isPremium ? 'bg-[#FFD700] text-black shadow-[0_0_20px_#FFD700]' : 'bg-gray-800 text-white hover:bg-[#D4AF37] hover:text-black'}`}>
+                      {tier.isPremium ? 'امتلاك السيادة' : 'اشتراك'}
+                    </button>
+                  </motion.div>
+                ))}
               </div>
-              <h2 className="text-white text-2xl font-black tracking-tight">تفعيل البرواز الذهبي</h2>
-              <p className="text-gray-500 text-xs mt-2 font-medium">اشترك الآن واحصل على كامل الصلاحيات السيادية</p>
-            </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto w-full">
+                <button 
+                  onClick={() => setSelectedTier(null)}
+                  className="mb-8 text-gray-500 hover:text-white flex items-center gap-2 text-sm font-bold"
+                >
+                  <X className="w-4 h-4" /> العودة للرتب
+                </button>
+                
+                <div className="w-full bg-[#0f0f0f] border-2 border-[#FFD700] rounded-[3rem] p-10 text-center shadow-[0_0_50px_rgba(255,215,0,0.15)]">
+                  <div className="mb-6">
+                    <Gem className="w-12 h-12 text-[#FFD700] mx-auto animate-pulse mb-4" />
+                    <h2 className="text-white text-2xl font-bold">تأكيد الاشتراك</h2>
+                    <p className="text-gray-500 text-xs mt-2">أنت بصدد تفعيل رتبة {TIERS.find(t => t.id === selectedTier)?.name}</p>
+                  </div>
 
-            <div className="bg-[#151515] rounded-[2rem] p-6 mb-6 border border-white/5 relative group">
-                <div className="text-4xl font-black text-white tracking-tighter">10.00 <span className="text-xs text-gray-500 font-medium">ر.س / شهر</span></div>
-                <p className="text-[10px] text-green-500 mt-2 font-black uppercase tracking-widest">تفعيل فوري للصلاحيات 🔥</p>
-                <div className="absolute top-2 right-4 opacity-5">
-                   <Star className="w-12 h-12 text-[#D4AF37]" />
+                  <div ref={paypalContainerRef} className="my-6 min-h-[150px]" />
+
+                  <p className="text-[10px] text-gray-600 mt-4 italic">
+                    سيتم تفعيل مميزاتك فور تأكيد الاشتراك من PayPal
+                  </p>
                 </div>
-            </div>
-
-            <ul className="text-right space-y-3 mb-8 px-2 text-xs text-gray-400 font-medium">
-                <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#D4AF37]/10 flex items-center justify-center">
-                    <Check className="w-3 h-3 text-[#D4AF37]" />
-                  </div>
-                  <span>البرواز الذهبي الملكي حول صورتك</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#D4AF37]/10 flex items-center justify-center">
-                    <Check className="w-3 h-3 text-[#D4AF37]" />
-                  </div>
-                  <span>مكالمات فيديو بدقة 4K فائقة</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#D4AF37]/10 flex items-center justify-center">
-                    <Check className="w-3 h-3 text-[#D4AF37]" />
-                  </div>
-                  <span>شارة "الملك" الذهبية الموثقة</span>
-                </li>
-            </ul>
-
-            <div id="paypal-button-container" ref={paypalContainerRef} className="my-6 min-h-[150px] relative z-10" />
-
-            <p className="mt-8 text-[9px] text-gray-600 italic leading-relaxed">
-              سيتم تفعيل مميزاتك فور تأكيد الاشتراك من PayPal
-              <br />
-              Secure Payment Processed by PayPal & SNNS Encryption
-            </p>
+              </div>
+            )}
           </motion.div>
         </div>
       )}

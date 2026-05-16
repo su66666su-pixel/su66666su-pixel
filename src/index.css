@@ -84,6 +84,22 @@
     background: radial-gradient(circle at center, rgba(212, 175, 55, 0.05) 0%, transparent 70%);
   }
 
+  .neon-text-glow {
+    color: #FFD700;
+    text-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700, 0 0 20px rgba(255, 215, 0, 0.5);
+    font-weight: 900;
+    animation: neonGlow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes neonGlow {
+    from {
+      text-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700, 0 0 20px rgba(255, 215, 0, 0.5);
+    }
+    to {
+      text-shadow: 0 0 7px #FFD700, 0 0 15px #FFD700, 0 0 30px rgba(255, 215, 0, 0.8);
+    }
+  }
+
   .btn-royal {
     background: linear-gradient(135deg, #D4AF37 0%, #FFD700 100%);
     box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
