@@ -36,7 +36,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .select('*')
         .eq('id', user.uid)
         .single();
@@ -52,14 +52,15 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
         trialEndDate.setDate(trialEndDate.getDate() + 7); // 7 days trial
 
         const { error: createError } = await supabase
-          .from('profiles')
+          .from('user_profiles')
           .insert({ 
             id: user.uid, 
             username: user.displayName || user.email?.split('@')[0],
             show_email: false,
             is_premium: false,
             trial_ends_at: trialEndDate.toISOString(),
-            is_geo_visible: false
+            is_geo_visible: false,
+            role: 'user' // Default role
           });
           
         if (createError) console.error("Error creating profile:", createError);
@@ -76,7 +77,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
     setIsUpdating(true);
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({ username: username.trim() })
         .eq('id', user.uid);
 
@@ -133,7 +134,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
         // 3. هنا يتم منح الميزة للمستخدم بناءً على نوع الكود (مثال: رتبة ملكية)
         if (codeData.reward_type === 'gold_membership') {
             const { error: profileError } = await supabase
-                .from('profiles')
+                .from('user_profiles')
                 .update({ membership_tier: 'gold', is_premium: true })
                 .eq('id', userId);
                 
@@ -158,7 +159,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
     setShowEmail(isVisible);
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({ show_email: isVisible })
         .eq('id', user.uid);
 
@@ -180,7 +181,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
         navigator.geolocation.getCurrentPosition(
           async (position) => {
             const { error } = await supabase
-              .from('profiles')
+              .from('user_profiles')
               .update({ 
                 is_geo_visible: true,
                 latitude: position.coords.latitude,
@@ -200,7 +201,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
         );
       } else {
         const { error } = await supabase
-          .from('profiles')
+          .from('user_profiles')
           .update(updates)
           .eq('id', user.uid);
         
@@ -239,7 +240,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
           try {
             // 1. Update own location first if geo-visible
             await supabase
-              .from('profiles')
+              .from('user_profiles')
               .update({ 
                 latitude: lat, 
                 longitude: lng,

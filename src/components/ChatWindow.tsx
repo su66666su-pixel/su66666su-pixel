@@ -63,6 +63,7 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // 1. Initial history and live updates from Firebase (Current source of truth)
     const messagesQuery = query(
       collection(db, 'rooms', room.id, 'messages'),
       orderBy('timestamp', 'asc'),
@@ -88,7 +89,43 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // 2. Real-time broadcast from Supabase (Requested Sovereignty Protocol)
+    const channel = supabase.channel('custom-all-channel')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          console.log('وصلت رسالة ملكية جديدة:', payload.new);
+          const msg = payload.new as any;
+          
+          // Only append if it belongs to this room and isn't already in the list
+          if (msg.room_id === room.id) {
+            setMessages(prev => {
+              if (prev.find(m => m.id === msg.id)) return prev;
+              const formattedMsg: Message = {
+                id: msg.id,
+                senderId: msg.sender_id,
+                senderName: msg.sender_name,
+                content: msg.content,
+                fileUrl: msg.file_url,
+                fileType: msg.file_type || 'text',
+                timestamp: msg.created_at ? { toDate: () => new Date(msg.created_at) } as any : null
+              };
+              return [...prev, formattedMsg];
+            });
+
+            setTimeout(() => {
+              scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      unsubscribe();
+      supabase.removeChannel(channel);
+    };
   }, [room.id]);
 
   const handleSendMessage = async (e?: React.FormEvent, fileData?: { url: string, type: 'image' | 'video' }) => {
@@ -108,8 +145,25 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
     }
 
     try {
+      const textToSend = newMessage;
       setNewMessage('');
+      
+      // 1. Send to Firebase (Legacy)
       await addDoc(collection(db, 'rooms', room.id, 'messages'), messageData);
+
+      // 2. Send to Supabase (Real-time Sovereignty)
+      await supabase
+        .from('messages')
+        .insert({
+          room_id: room.id,
+          sender_id: user.uid,
+          sender_name: messageData.senderName,
+          content: textToSend || null,
+          file_url: fileData?.url || null,
+          file_type: fileData?.type || 'text',
+          created_at: new Date().toISOString()
+        });
+        
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `rooms/${room.id}/messages`);
     }

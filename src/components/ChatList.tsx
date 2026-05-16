@@ -116,7 +116,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
     const fetchUserProfile = async (userId: string) => {
       try {
         const { data: profile, error } = await supabase
-          .from('profiles')
+          .from('user_profiles')
           .select('*')
           .eq('id', userId)
           .single();
@@ -272,18 +272,18 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           <button className="hover:text-gold transition-all hover:scale-110">
             <Users className="w-6 h-6" />
           </button>
-          <button 
-            onClick={() => {
-              if (userProfile?.role === 'admin') {
-                setIsAdminView(true);
-              } else {
-                showToast("⚠️ عذراً يا ملك، هذه المنطقة مخصصة للإدارة العليا فقط!", "error");
-              }
-            }}
-            className="hover:text-gold transition-all hover:scale-110"
-          >
-            <LayoutDashboard className="w-6 h-6" />
-          </button>
+          
+          {userProfile?.role === 'admin' && (
+            <button 
+              id="admin-menu-item"
+              onClick={() => setIsAdminView(true)}
+              className="hover:text-gold transition-all hover:scale-110 relative"
+            >
+              <LayoutDashboard className="w-6 h-6" />
+              <div className="absolute top-0 right-0 w-2 h-2 bg-neon-gold rounded-full animate-pulse shadow-[0_0_10px_#FFD700]" />
+            </button>
+          )}
+          
           <button 
             onClick={() => setIsProfileOpen(true)}
             className="hover:text-gold transition-all hover:scale-110"

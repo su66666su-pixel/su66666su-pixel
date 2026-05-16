@@ -176,9 +176,9 @@ export default function SubscriptionNotice({ user, isOpen, onClose }: Subscripti
 
             {!selectedTier ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 flex-1">
-                {TIERS.map((tier) => (
+                {TIERS.map((tier, idx) => (
                   <motion.div
-                    key={tier.id}
+                    key={`tier-${tier.id}-${idx}`}
                     whileHover={{ y: -10 }}
                     className={`bg-[#0f0f0f] p-8 rounded-[2.5rem] flex flex-col transition-all cursor-pointer relative ${tier.isPremium ? 'border-2 border-[#FFD700] scale-105 shadow-[0_0_50px_rgba(255,215,0,0.15)]' : 'border border-gray-800 hover:border-[#D4AF37]'}`}
                     onClick={() => setSelectedTier(tier.id)}
