@@ -66,10 +66,13 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
     );
 
     const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Message[];
+      const msgs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id
+        };
+      }) as Message[];
       setMessages(msgs);
       setLoading(false);
       
@@ -228,11 +231,11 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-8 space-y-6 scroll-smooth custom-scrollbar">
-        {messages.map((msg, idx) => {
+      {messages.map((msg, idx) => {
           const isOwn = msg.senderId === user.uid;
           return (
             <motion.div
-              key={`msg-${msg.id}-${idx}`}
+              key={`msg-${msg.id || idx}`}
               initial={{ opacity: 0, x: isOwn ? 20 : -20 }}
               animate={{ opacity: 1, x: 0 }}
               className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
@@ -282,9 +285,10 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
       </div>
 
       {/* Preview Container */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {previewUrl && (
           <motion.div 
+            key="chat-file-preview"
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}

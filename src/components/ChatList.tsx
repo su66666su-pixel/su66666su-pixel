@@ -152,7 +152,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
       orderBy('lastMessageTime', 'desc')
     );
 
-    const unsubscribe = onSnapshot(roomsQuery, (snapshot) => {
+      const unsubscribe = onSnapshot(roomsQuery, (snapshot) => {
       const roomData = snapshot.docs.map(doc => {
         const data = doc.data();
         let timeStr = 'نشط';
@@ -162,6 +162,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         }
 
         return {
+          ...data,
           id: doc.id,
           name: data.name,
           is_group: data.isGroup,
@@ -169,7 +170,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           last_message: data.lastMessage,
           last_message_time: timeStr,
           unread_count: data.unreadCount
-        };
+        } as ChatRoom;
       });
       setRooms(roomData);
       setLoading(false);
@@ -180,9 +181,9 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         console.error("Live rooms failed", err);
         // Fallback for demo if setup is not complete
         setRooms([
-          { id: '1', name: 'أحمد محمد', last_message: 'كيف حال المشروع يا بطل؟', last_message_time: '1:40 PM', is_group: false, avatar_url: '' },
-          { id: '2', name: 'فريق تطوير SNNS', last_message: 'المبرمج: تم ربط قاعدة البيانات بنجاح ✅', last_message_time: 'ACTIVE', is_group: true, avatar_url: '' },
-          { id: '3', name: 'سلطان القحطاني', last_message: 'صورة مرسلة', last_message_time: 'YESTERDAY', is_group: false, avatar_url: '' }
+          { id: 'fallback-room-1', name: 'أحمد محمد', last_message: 'كيف حال المشروع يا بطل؟', last_message_time: '1:40 PM', is_group: false, avatar_url: '' },
+          { id: 'fallback-room-2', name: 'فريق تطوير SNNS', last_message: 'المبرمج: تم ربط قاعدة البيانات بنجاح ✅', last_message_time: 'ACTIVE', is_group: true, avatar_url: '' },
+          { id: 'fallback-room-3', name: 'سلطان القحطاني', last_message: 'صورة مرسلة', last_message_time: 'YESTERDAY', is_group: false, avatar_url: '' }
         ]);
         setLoading(false);
       }
@@ -432,7 +433,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         {/* Active Users Sidebar */}
         <ActiveUsersSidebar />
       </main>
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {incomingCall && (
           <IncomingCallModal 
             callerName={incomingCall.callerName}
@@ -446,7 +447,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           />
         )}
       </AnimatePresence>
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {activeCall && (
           <VideoCall 
             targetName={activeCall.targetName}

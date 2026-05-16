@@ -118,21 +118,21 @@ export default function AdminDashboard() {
 
   const joinRequests = [
     {
-      id: '1',
+      id: 'request-1',
       name: 'سلطان القحطاني',
       plan: 'احترافية ملكية',
       status: 'نشط',
       avatar: 'https://ui-avatars.com/api/?name=Sultan&background=D4AF37&color=000'
     },
     {
-      id: '2',
+      id: 'request-2',
       name: 'فيصل العتيبي',
       plan: 'عضوية ذهبية',
       status: 'قيد الانتظار',
       avatar: 'https://ui-avatars.com/api/?name=Faisal&background=333&color=FFD700'
     },
     {
-      id: '3',
+      id: 'request-3',
       name: 'نورة الدوسري',
       plan: 'احترافية ملكية',
       status: 'نشط',

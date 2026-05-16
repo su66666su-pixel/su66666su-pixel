@@ -5,7 +5,7 @@ import { Lock } from 'lucide-react';
 export default function ActiveUsersSidebar() {
   const activeUsers = [
     {
-      id: '1',
+      id: 'active-1',
       name: 'سلطان القحطاني',
       status: 'نشط الآن',
       avatar: 'https://ui-avatars.com/api/?name=Sultan&background=0A0A0A&color=FFD700',
@@ -13,7 +13,7 @@ export default function ActiveUsersSidebar() {
       isPrivate: false
     },
     {
-      id: '2',
+      id: 'active-2',
       name: 'حساب خاص',
       status: 'مختفي',
       avatar: 'https://ui-avatars.com/api/?name=Guest&background=333&color=999',

@@ -132,9 +132,9 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
           // Simulation of search time
           setTimeout(() => {
             setNearbyUsers([
-              { id: '1', name: 'علي محمد', distance: '450 متر', avatar: 'Ali', type: 'normal' },
-              { id: '2', name: 'سارة أحمد', distance: '1.2 كم', avatar: 'Sara', type: 'normal' },
-              { id: '3', name: 'خالد القحطاني', distance: '3 كم', avatar: 'Khaled', type: 'agent' }
+              { id: 'nearby-1', name: 'علي محمد', distance: '450 متر', avatar: 'Ali', type: 'normal' },
+              { id: 'nearby-2', name: 'سارة أحمد', distance: '1.2 كم', avatar: 'Sara', type: 'normal' },
+              { id: 'nearby-3', name: 'خالد القحطاني', distance: '3 كم', avatar: 'Khaled', type: 'agent' }
             ]);
             setIsSearchingNearby(false);
           }, 2500);
