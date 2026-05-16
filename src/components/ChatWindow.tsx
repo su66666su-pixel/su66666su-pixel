@@ -11,7 +11,7 @@ import {
   User as UserIcon,
   Sparkles,
   Phone,
-  Gift,
+  Gift as GiftIcon,
   X
 } from 'lucide-react';
 import { 
@@ -21,6 +21,8 @@ import {
 } from '../firebase';
 import { handleGiftPurchase } from '../services/walletService';
 import { supabase } from '../supabase';
+import GiftSelector from './GiftSelector';
+import { useToast } from './Toast';
 import { 
   collection, 
   query, 
@@ -55,6 +57,8 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showGifts, setShowGifts] = useState(false);
+  const { showToast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -175,17 +179,15 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
     setPreviewUrl(null);
   };
 
-  const handleSendGift = async () => {
-    const giftName = prompt('اختر هدية (تاج: 100، نجمة: 50، ماسة: 200):');
-    if (!giftName) return;
-
-    let price = 50;
-    if (giftName.includes('تاج')) price = 100;
-    if (giftName.includes('ماسة')) price = 200;
-
-    const success = await handleGiftPurchase(user.uid, price);
+  const handleSendGift = async (gift: any) => {
+    setShowGifts(false);
+    
+    const success = await handleGiftPurchase(user.uid, gift.points);
     if (success) {
-      handleSendMessage(undefined, { url: `GIFT:${giftName}`, type: 'file' as any });
+      handleSendMessage(undefined, { url: `GIFT:${gift.emoji} ${gift.name}`, type: 'file' as any });
+      showToast(`تم إرسال ${gift.name} بنجاح! 👑`, 'royal');
+    } else {
+      showToast("عذراً، رصيدك غير كافٍ لهذا الكرم الملكي!", 'error');
     }
   };
 
@@ -347,10 +349,10 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
 
           <button 
             type="button" 
-            onClick={handleSendGift}
+            onClick={() => setShowGifts(true)}
             className="text-gray-text hover:text-neon-gold transition-colors"
           >
-            <Gift className="w-6 h-6" />
+            <GiftIcon className="w-6 h-6" />
           </button>
           
           <div className="relative flex-1 group">
@@ -382,6 +384,15 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
           <span className="text-[8px] uppercase tracking-[0.5em]">End-to-End Sovereignty Guaranteed</span>
         </div>
       </div>
+      
+      <AnimatePresence mode="wait">
+        {showGifts && (
+          <GiftSelector 
+            onSendGift={handleSendGift}
+            onClose={() => setShowGifts(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, User, Mail, MapPin, Shield, Check, Loader2, Crown, BadgeCheck, ShieldHalf, Medal, Gift, Flame, ShieldCheck } from 'lucide-react';
 import { supabase } from '../supabase';
 import AgentCenterModal from './AgentCenterModal';
+import { useToast } from './Toast';
 
 interface ProfileManagementModalProps {
   user: any;
@@ -20,6 +21,9 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
   const [nearbyUsers, setNearbyUsers] = useState<any[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isAgentCenterOpen, setIsAgentCenterOpen] = useState(false);
+  const [activationCode, setActivationCode] = useState('');
+  const [isActivating, setIsActivating] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
@@ -77,11 +81,76 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
         .eq('id', user.uid);
 
       if (error) throw error;
-      alert("تم تحديث الاسم الملكي بنجاح! 👑");
+      showToast("تم تحديث الاسم الملكي بنجاح! 👑", 'royal');
     } catch (err: any) {
-      alert("فشل التحديث: " + err.message);
+      showToast("فضل التحديث: " + err.message, 'error');
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleActivateCode = async () => {
+    if (!activationCode.trim()) {
+        showToast("يا ملك، فضلاً أدخل الكود أولاً!", 'info');
+        return;
+    }
+
+    setIsActivating(true);
+    try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) throw new Error("يجب تسجيل الدخول أولاً");
+        
+        const userId = authUser.id;
+
+        // 1. التحقق من صحة الكود وصلاحيته
+        const { data: codeData, error } = await supabase
+            .from('activation_codes')
+            .select('*')
+            .eq('code', activationCode.trim())
+            .eq('is_used', false)
+            .single();
+
+        if (error || !codeData) {
+            showToast("❌ الكود غير صحيح أو تم استخدامه مسبقاً!", 'error');
+            return;
+        }
+
+        // 2. تحديث حالة الكود في قاعدة البيانات ليكون "مُستخدم"
+        const { error: updateError } = await supabase
+            .from('activation_codes')
+            .update({ 
+                is_used: true, 
+                used_by: userId,
+                used_at: new Date().toISOString()
+            })
+            .eq('id', codeData.id);
+
+        if (updateError) {
+            showToast("❌ حدث خطأ أثناء تفعيل الكود، حاول مجدداً.", 'error');
+            return;
+        }
+
+        // 3. هنا يتم منح الميزة للمستخدم بناءً على نوع الكود (مثال: رتبة ملكية)
+        if (codeData.reward_type === 'gold_membership') {
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({ membership_tier: 'gold', is_premium: true })
+                .eq('id', userId);
+                
+            if (profileError) throw profileError;
+            
+            showToast("👑 تهانينا! تم تفعيل العضوية الملكية الذهبية بنجاح! استمتع بالسيادة.", 'royal');
+        } else {
+             showToast("✅ تم تفعيل الكود بنجاح!", 'success');
+        }
+        
+        // Refresh profile data
+        fetchProfile();
+        setActivationCode('');
+    } catch (err: any) {
+        showToast("❌ خطأ: " + err.message, 'error');
+    } finally {
+        setIsActivating(false);
     }
   };
 
@@ -104,12 +173,32 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
   const handleToggleGeoVisibility = async (isVisible: boolean) => {
     setIsGeoVisible(isVisible);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_geo_visible: isVisible })
-        .eq('id', user.uid);
+      const updates: any = { is_geo_visible: isVisible };
 
-      if (error) throw error;
+      // If turning on, try to get initial location
+      if (isVisible && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            await supabase
+              .from('profiles')
+              .update({ 
+                is_geo_visible: true,
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                last_position_update: new Date().toISOString()
+              })
+              .eq('id', user.uid);
+          },
+          (err) => console.error("Initial geo update failed", err)
+        );
+      } else {
+        const { error } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', user.uid);
+        if (error) throw error;
+      }
+
       console.log("تم تغيير حالة الظهور إلى:", isVisible ? "مرئي" : "مختفي");
     } catch (err) {
       console.error("Geo visibility toggle failed", err);
@@ -119,34 +208,70 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
 
   const handleOpenNearby = () => {
     if (!isGeoVisible) {
-      alert("يجب تفعيل وضع 'الظهور' أولاً لتتمكن من رؤية الآخرين ورؤيتهم لك! 👑");
+      showToast("يجب تفعيل وضع 'الظهور' أولاً لتتمكن من رؤية الآخرين ورؤيتهم لك! 👑", 'info');
       return;
     }
 
     if (navigator.geolocation) {
       setIsSearchingNearby(true);
       setNearbyUsers([]);
+      
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          console.log("جاري البحث عن أشخاص قرب إحداثياتك:", position.coords.latitude);
-          // Simulation of search time
-          setTimeout(() => {
-            setNearbyUsers([
-              { id: 'nearby-1', name: 'علي محمد', distance: '450 متر', avatar: 'Ali', type: 'normal' },
-              { id: 'nearby-2', name: 'سارة أحمد', distance: '1.2 كم', avatar: 'Sara', type: 'normal' },
-              { id: 'nearby-3', name: 'خالد القحطاني', distance: '3 كم', avatar: 'Khaled', type: 'agent' }
-            ]);
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+
+          try {
+            // 1. Update own location first if geo-visible
+            await supabase
+              .from('profiles')
+              .update({ 
+                latitude: lat, 
+                longitude: lng,
+                last_position_update: new Date().toISOString()
+              })
+              .eq('id', user.uid);
+
+            // 2. Search for nearby users using Supabase RPC
+            const { data: users, error } = await supabase
+              .rpc('get_nearby_users', { 
+                current_lat: lat, 
+                current_lng: lng,
+                distance_radius: 50.0 // Search within 50km
+              });
+
+            if (error) throw error;
+
+            if (users && users.length > 0) {
+              // Map RPC results to UI format
+              setNearbyUsers(users.map((u: any) => ({
+                id: u.id,
+                name: u.username || 'مستكشف مجهول',
+                distance: u.dist_meters ? 
+                  (u.dist_meters < 1000 ? `${Math.round(u.dist_meters)} متر` : `${(u.dist_meters/1000).toFixed(1)} كم`) 
+                  : 'بعيد قليلاً',
+                avatar: u.username || 'User',
+                type: u.membership_tier === 'agent' ? 'agent' : 'normal'
+              })));
+            } else {
+              showToast("لم يتم العثور على ملوك قريبين في الوقت الحالي. 🏰", 'info');
+            }
+          } catch (err: any) {
+            console.error("Nearby search failed:", err);
+            showToast("فشل البحث عن ملوك قريبين: " + err.message, 'error');
+          } finally {
             setIsSearchingNearby(false);
-          }, 2500);
+          }
         },
         (error) => {
           setIsSearchingNearby(false);
-          alert("يرجى تفعيل صلاحية الموقع و الـ GPS لاستخدام هذه الميزة. 📍");
+          showToast("يرجى تفعيل صلاحية الموقع و الـ GPS لاستخدام هذه الميزة. 📍", 'error');
           console.error("Geolocation error:", error);
-        }
+        },
+        { enableHighAccuracy: true }
       );
     } else {
-      alert("متصفحك لا يدعم ميزة الموقع الجغرافي. ❌");
+      showToast("متصفحك لا يدعم ميزة الموقع الجغرافي. ❌", 'error');
     }
   };
 
@@ -290,6 +415,44 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                       <span className="text-[9px] text-gray-400 font-bold">موثق</span>
                     </div>
                   </div>
+                </section>
+
+                {/* Activation Code Section */}
+                <section className="p-6 bg-gradient-to-b from-[#0f0f0f] to-black border border-[#FFD700]/10 rounded-3xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#FFD700]/5 blur-3xl rounded-full -mr-16 -mt-16" />
+                  
+                  <div className="flex items-center gap-2 mb-4 relative z-10">
+                    <Gift className="w-4 h-4 text-neon-gold" />
+                    <h3 className="text-xs font-black uppercase tracking-widest text-gray-200">تفعيل كود السيادة</h3>
+                  </div>
+                  
+                  <div className="flex gap-3 relative z-10">
+                    <div className="flex-1 relative">
+                      <input 
+                        type="text"
+                        value={activationCode}
+                        onChange={(e) => setActivationCode(e.target.value)}
+                        placeholder="أدخل كود التفعيل الملكي..."
+                        className="w-full royal-input px-4 py-3 text-sm font-mono tracking-wider focus:border-neon-gold/50 transition-all"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-neon-gold/30 to-transparent scale-x-0 group-focus-within:scale-x-100 transition-transform duration-500" />
+                    </div>
+                    <button 
+                      onClick={handleActivateCode}
+                      disabled={isActivating}
+                      className="bg-[#FFD700] text-black px-6 font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.2)]"
+                    >
+                      {isActivating ? <Loader2 className="w-4 h-4 animate-spin text-black" /> : (
+                        <>
+                          <span>تفعيل</span>
+                          <Check className="w-3 h-3" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-[8px] text-gray-500 mt-3 text-center uppercase tracking-widest leading-relaxed">
+                    استخدم أكواد التفعيل للحصول على رتب حصرية وميزات سيادية فورية
+                  </p>
                 </section>
 
                 {/* Privacy Section */}

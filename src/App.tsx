@@ -4,6 +4,7 @@ import { Crown, ShieldCheck, Stars, Shield } from 'lucide-react';
 import { auth, googleProvider } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
 import ChatList from './components/ChatList';
+import { ToastProvider } from './components/Toast';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -43,18 +44,18 @@ export default function App() {
     );
   }
 
-  if (user) {
-    return <ChatList user={user} onLogout={handleLogout} />;
-  }
-
   return (
-    <div className="relative min-h-screen bg-dark-bg text-off-white font-sans selection:bg-gold selection:text-black overflow-hidden flex flex-col">
-      {/* Background Decor */}
-      <div className="absolute inset-0 opacity-20 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-[radial-gradient(circle_at_center,_var(--color-gold)_0%,_transparent_70%)] opacity-30 blur-[120px]"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[radial-gradient(circle_at_center,_#1A1A1A_0%,_transparent_70%)] blur-[120px]"></div>
-        <div className="absolute inset-0 bg-dot-pattern"></div>
-      </div>
+    <ToastProvider>
+      {user ? (
+        <ChatList user={user} onLogout={handleLogout} />
+      ) : (
+        <div className="relative min-h-screen bg-dark-bg text-off-white font-sans selection:bg-gold selection:text-black overflow-hidden flex flex-col">
+          {/* Background Decor */}
+          <div className="absolute inset-0 opacity-20 pointer-events-none z-0">
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-[radial-gradient(circle_at_center,_var(--color-gold)_0%,_transparent_70%)] opacity-30 blur-[120px]"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[radial-gradient(circle_at_center,_#1A1A1A_0%,_transparent_70%)] blur-[120px]"></div>
+            <div className="absolute inset-0 bg-dot-pattern"></div>
+          </div>
 
       {/* Side Decoration Vertical Text */}
       <div className="hidden lg:flex absolute right-6 top-1/2 -translate-y-1/2 rotate-180 items-center space-x-4 opacity-30 z-10" style={{ writingMode: 'vertical-rl' }}>
@@ -181,6 +182,8 @@ export default function App() {
           </div>
         </div>
       </footer>
-    </div>
+        </div>
+      )}
+    </ToastProvider>
   );
 }

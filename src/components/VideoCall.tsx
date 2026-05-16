@@ -275,16 +275,10 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
       {/* Gift Selector Overlay */}
       <AnimatePresence mode="wait">
         {showGifts && (
-          <motion.div 
-            key="video-gift-selector"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="absolute bottom-0 inset-x-0 z-50"
-          >
-            <GiftSelector onSendGift={handleSendGift} />
-          </motion.div>
+          <GiftSelector 
+            onSendGift={handleSendGift} 
+            onClose={() => setShowGifts(false)}
+          />
         )}
       </AnimatePresence>
 
