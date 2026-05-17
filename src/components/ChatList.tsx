@@ -15,7 +15,7 @@ import {
   Sword
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { 
@@ -53,6 +53,12 @@ interface ChatItemProps {
   isActive?: boolean;
   onClick: () => void;
 }
+
+const ringtones = {
+    cyber_neon: 'https://snns.pro/sounds/cyber_neon.mp3',
+    sovereign_alert: 'https://snns.pro/sounds/sovereign_alert.mp3',
+    classic_secure: 'https://snns.pro/sounds/classic_secure.mp3'
+};
 
 const ChatItem: React.FC<ChatItemProps> = ({ room, isActive, onClick }) => {
   return (
@@ -109,6 +115,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [incomingCall, setIncomingCall] = useState<{ callerName: string, callerId: string } | null>(null);
   const [activeCall, setActiveCall] = useState<{ targetName: string, targetId: string } | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
@@ -120,6 +127,35 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const { showToast } = useToast();
 
+  const stopRingtone = () => {
+    if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.currentTime = 0;
+        currentAudioRef.current = null;
+    }
+  };
+
+  const playRingtone = (toneKey: keyof typeof ringtones = 'cyber_neon') => {
+    stopRingtone();
+    const toneUrl = ringtones[toneKey] || ringtones.cyber_neon;
+    const audio = new Audio(toneUrl);
+    audio.loop = true;
+    currentAudioRef.current = audio;
+    audio.play().catch(err => {
+        console.log("📡 Ringtone failed to play, waiting for user interaction:", err);
+    });
+  };
+
+  useEffect(() => {
+    if (incomingCall) {
+        const preferredTone = userProfile?.ringtone || localStorage.getItem(`ringtone_${user.uid}`) || 'cyber_neon';
+        playRingtone(preferredTone as any);
+    } else {
+        stopRingtone();
+    }
+    return () => stopRingtone();
+  }, [incomingCall, userProfile, user.uid]);
+
   const filteredRooms = rooms.filter(room => 
     room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     room.last_message?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -128,6 +164,29 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const filteredUsers = availableUsers.filter(u => 
     u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const showIncomingCallNotification = (senderName: string, callerId: string) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      const notification = new Notification("📞 اتصال سيادي وارد!", {
+        body: `المستكشف [ ${senderName} ] يطلب الاتصال بك الآن عبر SNNS.PRO`,
+        icon: '/logo.png', // Fallback to a placeholder if logo doesn't exist
+        tag: 'incoming-call',
+        requireInteraction: true
+      });
+
+      notification.onclick = () => {
+        window.focus();
+        setIncomingCall({ callerName: senderName, callerId: callerId });
+        notification.close();
+      };
+    }
+  };
 
   useEffect(() => {
     // Listen for incoming calls via Supabase Realtime broadcast
@@ -139,6 +198,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           callerName: payload.callerName, 
           callerId: payload.callerId 
         });
+        showIncomingCallNotification(payload.callerName, payload.callerId);
       })
       .subscribe();
 
@@ -484,7 +544,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         <div className="flex flex-col items-center gap-6 mt-auto">
             <div className="w-12 h-12 p-0.5 border border-[#D4AF37]/30 rounded-xl overflow-hidden shadow-[0_0_15px_rgba(212,175,55,0.08)] transition-all duration-300 hover:scale-105 hover:border-[#D4AF37] hover:shadow-[0_0_20px_rgba(212,175,55,0.2)]">
                 <img 
-                  src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=D4AF37&color=111`} 
+                  src={userProfile?.avatar_url || user.photoURL || `https://ui-avatars.com/api/?name=${userProfile?.username || user.displayName || user.email}&background=D4AF37&color=111`} 
                   alt="Profile" 
                   className="w-full h-full object-cover rounded-lg filter grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300" 
                 />
@@ -714,6 +774,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         user={user} 
         isOpen={isProfileOpen} 
         onClose={() => setIsProfileOpen(false)} 
+        onUpdate={(profile) => setUserProfile(profile)}
       />
       <SubscriptionNotice 
         user={user}

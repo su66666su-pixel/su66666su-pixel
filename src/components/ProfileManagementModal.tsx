@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, User, Mail, MapPin, Shield, Check, Loader2, Crown, BadgeCheck, ShieldHalf, Medal, Gift, Flame, ShieldCheck } from 'lucide-react';
+import { X, User, Mail, MapPin, Shield, Check, Loader2, Crown, BadgeCheck, ShieldHalf, Medal, Gift, Flame, ShieldCheck, Music } from 'lucide-react';
 import { supabase } from '../supabase';
 import AgentCenterModal from './AgentCenterModal';
 import { useToast } from './Toast';
@@ -9,10 +9,13 @@ interface ProfileManagementModalProps {
   user: any;
   isOpen: boolean;
   onClose: () => void;
+  onUpdate?: (profile: any) => void;
 }
 
-export default function ProfileManagementModal({ user, isOpen, onClose }: ProfileManagementModalProps) {
+export default function ProfileManagementModal({ user, isOpen, onClose, onUpdate }: ProfileManagementModalProps) {
   const [username, setUsername] = useState('');
+  const [bio, setBio] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [showEmail, setShowEmail] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,6 +25,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
   const [nearbyUsers, setNearbyUsers] = useState<any[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isAgentCenterOpen, setIsAgentCenterOpen] = useState(false);
+  const [selectedRingtone, setSelectedRingtone] = useState('cyber_neon');
   const [activationCode, setActivationCode] = useState('');
   const [isActivating, setIsActivating] = useState(false);
   const { showToast } = useToast();
@@ -45,8 +49,11 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
       if (data) {
         setUserProfile(data);
         setUsername(data.username || user.displayName || '');
+        setBio(data.bio || '');
+        setAvatarUrl(data.avatar_url || user.photoURL || '');
         setShowEmail(data.show_email || false);
         setIsGeoVisible(data.is_geo_visible || false);
+        if (data.ringtone) setSelectedRingtone(data.ringtone);
       } else if (error && error.code === 'PGRST116') {
         // Profile not found, create one
         const trialEndDate = new Date();
@@ -91,7 +98,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
     return "";
   };
 
-  const handleUpdateUsername = async () => {
+  const handleUpdateProfile = async () => {
     const error = validateUsername(username);
     if (error) {
       setUsernameError(error);
@@ -103,17 +110,27 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
     try {
       const { error } = await supabase
         .from('user_profiles')
-        .update({ username: username.trim() })
+        .update({ 
+          username: username.trim(),
+          bio: bio.trim(),
+          avatar_url: avatarUrl.trim()
+        })
         .eq('id', user.uid);
 
       if (error) throw error;
-      showToast("👑 تم تحديث اسمك الملكي بنجاح في النظام!", 'royal');
+      showToast("👑 تم تحديث ملفك السيادي بنجاح!", 'royal');
       setUsernameError('');
-      // Force reload to sync changes across all components if necessary, 
-      // although state updates are preferred, user snippet suggests reload.
-      setTimeout(() => window.location.reload(), 1500);
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.uid)
+        .single();
+      if (data) {
+        setUserProfile(data);
+        if (onUpdate) onUpdate(data);
+      }
     } catch (err: any) {
-      showToast("فضل التحديث: " + err.message, 'error');
+      showToast("فشل التحديث: " + err.message, 'error');
     } finally {
       setIsUpdating(false);
     }
@@ -248,6 +265,33 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
       console.error("Geo visibility toggle failed", err);
       setIsGeoVisible(!isVisible); // Rollback
       showToast("فشل تحديث حالة الظهور الجغرافي", 'error');
+    }
+  };
+
+  const handleRingtoneChange = async (tone: string) => {
+    setSelectedRingtone(tone);
+    
+    // Preview the ringtone
+    const ringtones = {
+      cyber_neon: 'https://snns.pro/sounds/cyber_neon.mp3',
+      sovereign_alert: 'https://snns.pro/sounds/sovereign_alert.mp3',
+      classic_secure: 'https://snns.pro/sounds/classic_secure.mp3'
+    };
+    
+    const audio = new Audio((ringtones as any)[tone]);
+    audio.play().catch(e => console.log("Audio preview failed", e));
+    setTimeout(() => audio.pause(), 3000); // Stop after 3 seconds
+
+    try {
+      await supabase
+        .from('user_profiles')
+        .update({ ringtone: tone })
+        .eq('id', user.uid);
+      
+      // Update local storage as a backup/immediate sync for ChatList
+      localStorage.setItem(`ringtone_${user.uid}`, tone);
+    } catch (err) {
+      console.error("Failed to update ringtone in DB", err);
     }
   };
 
@@ -443,53 +487,77 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
             ) : (
               <div className="space-y-10 relative" dir="rtl">
                 {/* Username Section */}
-                <section className="space-y-4">
+                <section className="space-y-6">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4 text-neon-gold" />
-                      <h3 className="text-xs font-black uppercase tracking-widest text-gray-200">الاسم الملكي</h3>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1 bg-neon-gold/10 border border-neon-gold/20 rounded-full">
-                       <Shield className="w-3 h-3 text-neon-gold" />
-                       <span className="text-[10px] font-black text-neon-gold uppercase tracking-widest">
-                         {userProfile?.role || 'user'}
-                       </span>
+                      <h3 className="text-xs font-black uppercase tracking-widest text-gray-200">البيانات الشخصية</h3>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex gap-3">
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-gray-500 uppercase tracking-widest font-black mr-2">الاسم الملكي</label>
                       <input 
-                        id="usernameInput"
                         type="text"
                         value={username}
                         onChange={(e) => {
                           setUsername(e.target.value);
                           if (usernameError) setUsernameError('');
                         }}
-                        placeholder="أدخل الاسم الجديد..."
-                        className={`flex-1 royal-input px-4 py-3 text-sm ${userProfile?.subscription_tier === 'ذهبي' ? 'neon-text-glow' : ''} ${usernameError ? 'border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : ''}`}
+                        className={`w-full royal-input px-4 py-3 text-sm ${usernameError ? 'border-red-500/50' : ''}`}
+                        placeholder="الاسم"
                       />
-                      <button 
-                        onClick={handleUpdateUsername}
-                        disabled={isUpdating}
-                        className="bg-neon-gold text-royal-black px-6 font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
-                      >
-                        {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'تحديث'}
-                      </button>
                     </div>
-                    <AnimatePresence>
-                      {usernameError && (
-                        <motion.p 
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="text-[10px] text-red-500 font-bold tracking-tight"
-                        >
-                          {usernameError}
-                        </motion.p>
-                      )}
-                    </AnimatePresence>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-gray-500 uppercase tracking-widest font-black mr-2">رابط الصورة (Avatar)</label>
+                      <input 
+                        type="text"
+                        value={avatarUrl}
+                        onChange={(e) => setAvatarUrl(e.target.value)}
+                        className="w-full royal-input px-4 py-3 text-sm"
+                        placeholder="https://..."
+                      />
+                    </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-gray-500 uppercase tracking-widest font-black mr-2">الحالة السيادية (Bio)</label>
+                    <textarea 
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      rows={2}
+                      className="w-full royal-input px-4 py-3 text-sm resize-none"
+                      placeholder="اكتب شيئاً عن مكانتك..."
+                    />
+                  </div>
+
+                  <button 
+                    onClick={handleUpdateProfile}
+                    disabled={isUpdating}
+                    className="w-full bg-neon-gold text-royal-black h-12 font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.2)]"
+                  >
+                    {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>تحديث البيانات الملكية</span>
+                      </>
+                    )}
+                  </button>
+
+                  <AnimatePresence>
+                    {usernameError && (
+                      <motion.p 
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="text-[10px] text-red-500 font-bold tracking-tight text-center"
+                      >
+                        {usernameError}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                 </section>
 
                 {/* Badges Section */}
@@ -575,6 +643,26 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                   <p className="text-[8px] text-gray-500 mt-3 text-center uppercase tracking-widest leading-relaxed">
                     استخدم أكواد التفعيل للحصول على رتب حصرية وميزات سيادية فورية
                   </p>
+                </section>
+
+                {/* Ringtone Selection Section */}
+                <section className="border border-gray-950 bg-[#070707] p-6 rounded-3xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Music className="w-4 h-4 text-[#22c55e] drop-shadow-[0_0_5px_#22c55e]" />
+                    <h3 className="text-white font-bold text-sm tracking-tight">نغمة الرنين السيادية</h3>
+                  </div>
+                  
+                  <select 
+                    value={selectedRingtone}
+                    onChange={(e) => handleRingtoneChange(e.target.value)}
+                    className="w-full bg-black border border-gray-800 rounded-xl px-4 py-3 text-gray-300 text-xs font-bold focus:border-[#22c55e] focus:outline-none transition-colors appearance-none cursor-pointer"
+                    style={{ backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")', backgroundRepeat: 'no-repeat', backgroundPosition: 'left 1rem center', backgroundSize: '1em' }}
+                  >
+                    <option value="cyber_neon">📡 نيون مشفر (افتراضي)</option>
+                    <option value="sovereign_alert">⚡ نبض السيادة العسكري</option>
+                    <option value="classic_secure">🎵 نغمة الأمان الكلاسيكية</option>
+                  </select>
+                  <p className="text-gray-600 text-[10px] mt-2 leading-relaxed">سيتم تشغيل النغمة المحددة تلقائياً عند استقبال المكالمات المرئية والسمعية.</p>
                 </section>
 
                 {/* Privacy Section */}

@@ -1,57 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../supabase';
 import { 
-  Crown, 
-  LayoutDashboard, 
   Users, 
-  Coins, 
-  Bell, 
-  EllipsisVertical, 
-  TrendingUp, 
-  ArrowUpRight,
-  Star
+  PhoneCall, 
+  Key, 
+  Activity, 
+  Zap, 
+  ShieldAlert, 
+  Search, 
+  Loader2, 
+  Check,
+  Shield,
+  ShieldCheck,
+  ShieldAlert as ShieldBan,
+  MoreVertical,
+  LayoutDashboard
 } from 'lucide-react';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-} from 'chart.js';
-import { Line } from 'react-chartjs-2';
-
-// Register ChartJS
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
+import { useToast } from './Toast';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'coins'>('stats');
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [subscriberCount, setSubscriberCount] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
-  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [activeCodesCount, setActiveCodesCount] = useState(0);
+  const [activeCalls, setActiveCalls] = useState(0);
   const [usersList, setUsersList] = useState<any[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [codePlan, setCodePlan] = useState('vip_sovereign');
+  const [codeCount, setCodeCount] = useState(1);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     const checkProtection = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        window.location.href = '/';
+        setIsAuthorized(false);
         return;
       }
 
@@ -62,8 +48,7 @@ export default function AdminDashboard() {
         .single();
 
       if (!profile || profile.role !== 'admin') {
-        alert("⚠️ عذراً يا ملك، هذه المنطقة مخصصة للإدارة العليا فقط!");
-        window.location.href = '/';
+        setIsAuthorized(false);
       } else {
         setIsAuthorized(true);
       }
@@ -74,452 +59,378 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (isAuthorized) {
-      if (activeTab === 'stats') {
-        const fetchFinancialStats = async () => {
-          try {
-            // Fetch Transactions
-            const { data: transData, error: transError } = await supabase
-              .from('coin_transactions')
-              .select('amount')
-              .eq('transaction_type', 'subscription');
+      fetchStats();
+      fetchUsers();
 
-            if (!transError && transData) {
-              const total = transData.reduce((sum, item) => sum + (item.amount || 0), 0);
-              setTotalRevenue(total);
-              setSubscriberCount(transData.length);
-            }
+      // Implement the Sovereign Radar (Real-time tracking of user changes)
+      const radarChannel = supabase
+        .channel('admin_radar')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, (payload) => {
+          console.log("📡 Radar detected a change in the digital kingdom!", payload);
+          fetchStats();
+          fetchUsers();
+          showToast("📡 رادار السيادة: تم رصد تحديث في قاعدة البيانات الملكية!", 'info');
+        })
+        .subscribe();
 
-            // Fetch User Count
-            const { count, error: userError } = await supabase
-              .from('user_profiles')
-              .select('*', { count: 'exact', head: true });
-            
-            if (!userError) setTotalUsers(count || 0);
-
-          } catch (err) {
-            console.error("Unexpected error fetching stats:", err);
-          }
-        };
-
-        fetchFinancialStats();
-      } else if (activeTab === 'users') {
-        const fetchUsers = async () => {
-          setIsLoadingUsers(true);
-          try {
-            const { data, error } = await supabase
-              .from('user_profiles')
-              .select('*')
-              .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            setUsersList(data || []);
-          } catch (err) {
-            console.error("Error fetching users:", err);
-          } finally {
-            setIsLoadingUsers(false);
-          }
-        };
-        fetchUsers();
-      }
+      return () => {
+        radarChannel.unsubscribe();
+      };
     }
-  }, [isAuthorized, activeTab]);
+  }, [isAuthorized]);
 
-  const handleUpdateRole = async (userId: string, newRole: string) => {
+  const toggleUserRole = async (userId: string, currentRole: string) => {
+    const newRole = currentRole === 'admin' ? 'user' : currentRole === 'agent' ? 'admin' : 'agent';
     try {
       const { error } = await supabase
         .from('user_profiles')
         .update({ role: newRole })
         .eq('id', userId);
-
-      if (error) throw error;
       
-      setUsersList(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
-    } catch (err) {
-      console.error("Error updating role:", err);
-      alert("فشل تحديث الرتبة ❌");
+      if (error) throw error;
+      showToast(`تم تغيير الرتبة إلى ${newRole} بنجاح 👑`, 'royal');
+      // No need to call fetchUsers manually due to real-time subscription
+    } catch (err: any) {
+      showToast("فشل الترقية: " + err.message, 'error');
     }
   };
 
-  if (isAuthorized === null) {
+  const fetchStats = async () => {
+    try {
+      // Total Users
+      const { count: usersCount } = await supabase
+        .from('user_profiles')
+        .select('*', { count: 'exact', head: true });
+      setTotalUsers(usersCount || 0);
+
+      // Active Codes
+      const { count: codesCount } = await supabase
+        .from('activation_codes')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_used', false);
+      setActiveCodesCount(codesCount || 0);
+
+      // Mock Active Calls (Normally we'd have a room_participants table or similar)
+      setActiveCalls(Math.floor(Math.random() * 12) + 3);
+    } catch (err) {
+      console.error("Stats fetch error:", err);
+    }
+  };
+
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setUsersList(data || []);
+    } catch (err) {
+      console.error("Users fetch error:", err);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  const generateSovereignCodes = async () => {
+    setIsGenerating(true);
+    try {
+      const codes = [];
+      const reward_type = 'gold_membership'; // Default for these plans
+      
+      for (let i = 0; i < codeCount; i++) {
+        const randomCode = 'SNNS-' + Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        codes.push({
+          code: randomCode,
+          reward_type: reward_type,
+          is_used: false,
+          created_by: (await supabase.auth.getUser()).data.user?.id,
+          metadata: { plan: codePlan }
+        });
+      }
+
+      const { error } = await supabase
+        .from('activation_codes')
+        .insert(codes);
+
+      if (error) throw error;
+      
+      showToast(`⚡ تم توليد ${codeCount} كود سيادي بنجاح!`, 'royal');
+      fetchStats();
+    } catch (err: any) {
+      showToast("فشل التوليد: " + err.message, 'error');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const toggleUserStatus = async (userId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'banned' ? 'active' : 'banned';
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ status: newStatus })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      showToast(`تم تغيير حالة المستخدم إلى ${newStatus === 'banned' ? 'محظور' : 'نشط'}`, 'info');
+      fetchUsers();
+    } catch (err: any) {
+      showToast("فشل التحديث: " + err.message, 'error');
+    }
+  };
+
+  const filteredUsers = usersList.filter(u => 
+    (u.username?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (u.email?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+  );
+
+  if (isAuthorized === false) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#050505]">
-        <div className="w-12 h-12 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#020202] flex items-center justify-center p-8">
+        <div className="text-center space-y-4">
+          <ShieldBan className="w-16 h-16 text-red-500 mx-auto" />
+          <h1 className="text-white text-2xl font-black">الدخول مرفوض</h1>
+          <p className="text-gray-500">لا تملك صلاحيات كافية للوصول لغرفة القيادة.</p>
+          <button onClick={() => window.location.href = '/'} className="text-neon-gold border border-neon-gold/50 px-6 py-2 rounded-full font-bold">العودة للرئيسية</button>
+        </div>
       </div>
     );
   }
 
-  if (!isAuthorized) return null;
-
-  const chartData = {
-    labels: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
-    datasets: [
-      {
-        label: 'الإيرادات اليومية',
-        data: [12000, 19000, 15000, 25000, 22000, 30000, 28000],
-        borderColor: '#D4AF37',
-        backgroundColor: 'rgba(212, 175, 55, 0.1)',
-        tension: 0.4,
-        fill: true,
-        pointBackgroundColor: '#FFD700',
-        pointBorderColor: '#000',
-        pointHoverRadius: 6,
-      }
-    ]
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        backgroundColor: '#0a0a0a',
-        titleColor: '#FFD700',
-        bodyColor: '#fff',
-        borderColor: '#D4AF37',
-        borderWidth: 1,
-        padding: 12,
-        displayColors: false,
-        rtl: true,
-        titleFont: { family: 'Cairo' },
-        bodyFont: { family: 'Cairo' },
-      }
-    },
-    scales: {
-      y: {
-        grid: { color: 'rgba(255, 255, 255, 0.05)' },
-        ticks: { color: '#8E9299', font: { family: 'Cairo', size: 10 } }
-      },
-      x: {
-        grid: { display: false },
-        ticks: { color: '#8E9299', font: { family: 'Cairo', size: 10 } }
-      }
-    }
-  };
-
-  const joinRequests = [
-    {
-      id: 'request-1',
-      name: 'سلطان القحطاني',
-      plan: 'احترافية ملكية',
-      status: 'نشط',
-      avatar: 'https://ui-avatars.com/api/?name=Sultan&background=D4AF37&color=000'
-    },
-    {
-      id: 'request-2',
-      name: 'فيصل العتيبي',
-      plan: 'عضوية ذهبية',
-      status: 'قيد الانتظار',
-      avatar: 'https://ui-avatars.com/api/?name=Faisal&background=333&color=FFD700'
-    },
-    {
-      id: 'request-3',
-      name: 'نورة الدوسري',
-      plan: 'احترافية ملكية',
-      status: 'نشط',
-      avatar: 'https://ui-avatars.com/api/?name=Noura&background=D4AF37&color=000'
-    }
-  ];
+  if (isAuthorized === null) {
+    return (
+      <div className="min-h-screen bg-[#020202] flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-neon-gold animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-screen bg-[#050505] text-white font-cairo" dir="rtl">
-      {/* Sidebar */}
-      <aside className="w-64 bg-[#0f0f0f] border-l border-white/5 p-6 flex flex-col gap-6">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-[#D4AF37] rounded-lg flex items-center justify-center shadow-[0_0_15px_#FFD700]">
-            <Crown className="w-6 h-6 text-black" />
-          </div>
-          <h1 className="text-xl font-black tracking-tighter text-[#FFD700]">SNNS.PRO</h1>
-        </div>
-        
-        <nav className="flex flex-col gap-2">
-          <button 
-            onClick={() => setActiveTab('stats')}
-            className={`flex items-center gap-3 p-3 rounded-xl font-bold transition-all ${activeTab === 'stats' ? 'bg-[#D4AF37] text-black shadow-[0_0_20px_rgba(212,175,55,0.2)]' : 'text-gray-400 hover:text-[#FFD700] hover:bg-[#1a1a1a]'}`}
-          >
-            <LayoutDashboard className="w-5 h-5" />
-            <span>لوحة التحكم</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('users')}
-            className={`flex items-center gap-3 p-3 rounded-xl font-bold transition-all ${activeTab === 'users' ? 'bg-[#D4AF37] text-black shadow-[0_0_20px_rgba(212,175,55,0.2)]' : 'text-gray-400 hover:text-[#FFD700] hover:bg-[#1a1a1a]'}`}
-          >
-            <Users className="w-5 h-5" />
-            <span>إدارة المستخدمين</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('coins')}
-            className={`flex items-center gap-3 p-3 rounded-xl font-bold transition-all ${activeTab === 'coins' ? 'bg-[#D4AF37] text-black shadow-[0_0_20px_rgba(212,175,55,0.2)]' : 'text-gray-400 hover:text-[#FFD700] hover:bg-[#1a1a1a]'}`}
-          >
-            <Coins className="w-5 h-5" />
-            <span>العملات والاشتراكات</span>
-          </button>
-        </nav>
-
-        <div className="mt-auto p-4 bg-neon-gold/5 border border-neon-gold/10 rounded-xl">
-          <p className="text-[10px] text-neon-gold font-bold uppercase tracking-widest text-center">
-            Sovereign Admin Panel v4.0
-          </p>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-8 overflow-y-auto bg-dot-pattern">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center mb-10 border-b border-[#D4AF37]/20 pb-6">
+    <div className="min-h-screen bg-[#020202] text-gray-100 p-8 font-cairo select-none" dir="rtl">
+      
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-900 pb-6 mb-8 gap-4">
           <div>
-            <motion.h1 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="text-3xl font-black text-[#FFD700] tracking-tight uppercase"
-            >
-              {activeTab === 'stats' ? 'Royal Financial Statistics' : activeTab === 'users' ? 'User Management' : 'Economy Hub'}
-            </motion.h1>
-            <p className="text-gray-500 text-sm mt-1">
-              {activeTab === 'stats' ? 'تتبع نمو اشتراكات الـ 10 ريال لحظياً' : activeTab === 'users' ? 'إدارة رتب الملوك والوكلاء في السيادة' : 'إدارة خزانة السيادة والعملات والاشتراكات'}
-            </p>
+              <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-[#22c55e] rounded-full shadow-[0_0_12px_#22c55e] animate-pulse"></div>
+                  <h1 className="text-white text-3xl font-black tracking-tight">غرفة القيادة والتحكم السيادية</h1>
+              </div>
+              <p className="text-gray-500 text-xs mt-1.5 font-medium tracking-wide">المراقب العام للعمليات، الأكواد، والمكالمات المشفرة داخل المملكة</p>
           </div>
-          <div className="flex gap-4">
-            <div className="flex items-center gap-3 bg-[#0f0f0f] pr-1 pl-4 py-1 rounded-full border border-white/5">
-              <img 
-                src="https://ui-avatars.com/api/?name=Admin&background=D4AF37&color=000" 
-                className="w-10 h-10 rounded-full border-2 border-[#FFD700]" 
-                alt="Admin"
-              />
-              <div className="text-left">
-                <p className="text-xs font-bold text-white uppercase">Master Root</p>
-                <span className="text-[8px] bg-gold/10 text-gold px-1.5 py-0.5 rounded border border-gold/20">ADMINISTRATOR</span>
+          
+          <div className="flex items-center gap-4 bg-[#0a0a0a] border border-gray-900 px-5 py-3 rounded-2xl shadow-lg">
+              <div className="text-left font-mono">
+                  <p className="text-[10px] text-gray-500 uppercase font-bold">SERVER STATUS</p>
+                  <p className="text-[#22c55e] text-xs font-bold tracking-widest animate-pulse text-left">STABLE • 99.9%</p>
               </div>
-            </div>
+              <div className="w-[1px] h-8 bg-gray-800"></div>
+              <div className="text-right">
+                  <p className="text-[10px] text-gray-500 font-bold">المسؤول الحالي</p>
+                  <p className="text-neon-gold text-xs font-black">أدمن السيادة 👑</p>
+              </div>
           </div>
-        </div>
+      </div>
 
-        {activeTab === 'stats' ? (
-          <>
-            {/* Stats Grid - Enhanced Financial Focus */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-              <motion.div 
-                whileHover={{ y: -5 }}
-                className="bg-[#0f0f0f] p-8 rounded-[2rem] border border-gray-800 relative overflow-hidden group shadow-2xl"
-              >
-                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-20 transition-opacity">
-                  <Coins className="w-20 h-20 text-[#FFD700]" />
-                </div>
-                <p className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">إجمالي الدخل (PayPal)</p>
-                <h3 className="text-3xl font-black text-[#FFD700] mt-3 tracking-tighter" id="totalRevenue">{totalRevenue.toLocaleString()}.00 $</h3>
-                <div className="flex items-center gap-1 mt-3">
-                  <span className="text-[10px] text-green-500 font-bold">+12% عن الشهر الماضي</span>
-                  <TrendingUp className="w-3 h-3 text-green-500" />
-                </div>
-              </motion.div>
-
-              <motion.div 
-                whileHover={{ y: -5 }}
-                className="bg-[#0f0f0f] p-8 rounded-[2rem] border border-gray-800 shadow-2xl"
-              >
-                <p className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">المشتركون النشطون</p>
-                <h3 className="text-3xl font-black text-white mt-3 tabular-nums" id="activeSubscribers">{subscriberCount.toLocaleString()}</h3>
-                <p className="text-[10px] text-[#D4AF37] mt-3 font-bold">قيد التجربة: 148 مستخدم</p>
-              </motion.div>
-
-              <motion.div 
-                whileHover={{ y: -5 }}
-                className="bg-[#0f0f0f] p-8 rounded-[2rem] border border-gray-800 shadow-2xl"
-              >
-                <p className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">إجمالي المستخدمين</p>
-                <h3 className="text-3xl font-black text-white mt-3 tabular-nums" id="totalUsers">{totalUsers.toLocaleString()}</h3>
-                <p className="text-[10px] text-neon-gold mt-3 font-bold">ملوك مسجلون في السيادة</p>
-              </motion.div>
-
-              <motion.div 
-                whileHover={{ y: -5 }}
-                className="bg-[#0f0f0f] p-8 rounded-[2rem] border border-gray-800 bg-gradient-to-br from-[#0f0f0f] to-neon-gold/5 shadow-2xl"
-              >
-                 <p className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">تقييم المنصة</p>
-                 <h3 className="text-3xl font-black text-white mt-3 tracking-tighter">4.9/5.0</h3>
-                 <div className="mt-4 flex text-neon-gold gap-1">
-                    {[1,2,3,4,5].map((i, idx) => <Star key={`stat-star-${i}-${idx}`} className="w-3.5 h-3.5 fill-current" />)}
-                 </div>
-              </motion.div>
-            </div>
-
-            {/* Profit growth chart section */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-[#0f0f0f] p-10 rounded-[3rem] border border-gray-800 shadow-2xl mb-10"
-            >
-              <div className="flex justify-between items-center mb-10">
-                <div>
-                  <h3 className="text-lg font-black text-[#FFD700] uppercase tracking-wider">منحنى نمو الأرباح</h3>
-                  <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest font-bold">Daily Revenue Projection & Realized Profit</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-[#FFD700]" />
-                    <span className="text-[10px] text-gray-500 uppercase font-black">Revenue</span>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          
+          <motion.div whileHover={{ y: -5 }} className="bg-[#060606] border border-gray-900 rounded-2xl p-5 relative overflow-hidden transition-all duration-300 hover:border-[#22c55e]/30 shadow-md">
+              <div className="flex justify-between items-start">
+                  <div>
+                      <p className="text-gray-500 text-xs font-bold">المستكشفين المسجلين</p>
+                      <h3 className="text-white text-3xl font-black font-mono mt-2">{totalUsers.toLocaleString()}</h3>
                   </div>
-                  <div className="px-3 py-1 bg-white/5 rounded-full border border-white/5 text-[9px] font-bold text-gray-400">
-                    LIVE UPDATE
+                  <div className="p-3 bg-[#22c55e]/5 rounded-xl text-[#22c55e] border border-[#22c55e]/10 shadow-[0_0_15px_rgba(34,197,94,0.05)]">
+                      <Users className="w-5 h-5" />
                   </div>
-                </div>
               </div>
-              <div className="h-[400px] relative">
-                <Line data={chartData} options={chartOptions} />
-              </div>
-            </motion.div>
-
-            {/* Table Section */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-[#0f0f0f] rounded-2xl border border-white/5 p-8 shadow-2xl"
-            >
-              <div className="flex justify-between items-center mb-8">
-                <h3 className="text-xl font-black text-[#FFD700] uppercase tracking-wider">أحدث طلبات الانضمام</h3>
-                <button className="text-[10px] bg-white/5 px-4 py-2 rounded-full font-bold hover:bg-white/10 transition-all border border-white/5">
-                  عرض الكل
-                </button>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-right">
-                  <thead>
-                    <tr className="text-gray-500 border-b border-white/5">
-                      <th className="pb-4 font-bold text-xs uppercase tracking-widest">المستخدم</th>
-                      <th className="pb-4 font-bold text-xs uppercase tracking-widest">الخطة</th>
-                      <th className="pb-4 font-bold text-xs uppercase tracking-widest">الحالة</th>
-                      <th className="pb-4 font-bold text-xs uppercase tracking-widest text-left pl-4">الإجراءات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {joinRequests.map((request, idx) => (
-                      <tr key={`join-req-${request.id || idx}-${idx}`} className="group hover:bg-white/[0.02] transition-all">
-                        <td className="py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="relative">
-                              <img src={request.avatar} className="w-10 h-10 rounded-full border border-white/10" alt={request.name} />
-                              {request.status === 'نشط' && (
-                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#0f0f0f] rounded-full" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-gray-200">{request.name}</p>
-                              <p className="text-[10px] text-gray-500">ID: #{Math.floor(Math.random() * 10000)}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${request.plan === 'احترافية ملكية' ? 'bg-[#D4AF37]' : 'bg-neon-gold'}`} />
-                            <span className="text-xs font-bold text-[#D4AF37]">{request.plan}</span>
-                          </div>
-                        </td>
-                        <td className="py-4">
-                          <span className={`
-                            px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border
-                            ${request.status === 'نشط' 
-                              ? 'bg-green-500/10 text-green-400 border-green-500/20' 
-                              : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'}
-                          `}>
-                            {request.status}
-                          </span>
-                        </td>
-                        <td className="py-4 text-left pl-4">
-                          <button className="text-gray-600 hover:text-[#FFD700] transition-colors p-2 hover:bg-white/5 rounded-lg">
-                            <EllipsisVertical className="w-5 h-5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          </>
-        ) : activeTab === 'users' ? (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-[#0f0f0f] rounded-3xl border border-white/5 overflow-hidden shadow-2xl"
-          >
-            {isLoadingUsers ? (
-              <div className="h-64 flex items-center justify-center">
-                 <div className="w-10 h-10 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-right">
-                  <thead className="bg-white/5">
-                    <tr>
-                      <th className="px-8 py-6 font-black text-xs uppercase tracking-[0.2em] text-gray-400">الملك / المستخدم</th>
-                      <th className="px-8 py-6 font-black text-xs uppercase tracking-[0.2em] text-gray-400">الاشتراك</th>
-                      <th className="px-8 py-6 font-black text-xs uppercase tracking-[0.2em] text-gray-400">الرتبة السيادية</th>
-                      <th className="px-8 py-6 font-black text-xs uppercase tracking-[0.2em] text-gray-400 text-left">التحكم</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {usersList.map((u, idx) => (
-                      <tr key={`u-row-${u.id}-${idx}`} className="hover:bg-gold/5 transition-colors group">
-                        <td className="px-8 py-5">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 border border-gold/30 p-0.5 rounded-lg">
-                               <img 
-                                 src={u.avatar_url || `https://ui-avatars.com/api/?name=${u.username}&background=111&color=D4AF37`} 
-                                 className="w-full h-full object-cover rounded shadow-md group-hover:scale-105 transition-transform" 
-                               />
-                            </div>
-                            <div>
-                               <p className="font-black text-sm text-off-white">{u.username}</p>
-                               <p className="text-[10px] text-gray-500 font-mono italic">{u.id.substring(0, 8)}...</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-8 py-5">
-                           <span className={`px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest ${u.is_premium ? 'bg-gold/10 text-gold border border-gold/20' : 'bg-white/5 text-gray-500 border border-white/10'}`}>
-                             {u.membership_tier || 'مستكشف'}
-                           </span>
-                        </td>
-                        <td className="px-8 py-5">
-                           <select 
-                             value={u.role || 'user'}
-                             onChange={(e) => handleUpdateRole(u.id, e.target.value)}
-                             className="bg-[#1a1a1a] border border-white/10 text-xs font-bold text-off-white px-3 py-2 rounded-lg focus:border-gold outline-none transition-all cursor-pointer"
-                           >
-                             <option value="user">USER (مواطن)</option>
-                             <option value="agent">AGENT (وكيل)</option>
-                             <option value="admin">ADMIN (مشرف)</option>
-                           </select>
-                        </td>
-                        <td className="px-8 py-5 text-left">
-                           <button className="text-gray-500 hover:text-gold transition-colors">
-                              <EllipsisVertical className="w-5 h-5" />
-                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#22c55e]/30 to-transparent"></div>
           </motion.div>
-        ) : (
-          <div className="h-64 flex flex-col items-center justify-center bg-[#0f0f0f] rounded-3xl border border-dashed border-gray-800">
-             <Coins className="w-12 h-12 text-gray-700 mb-4" />
-             <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Economy Management Module Coming Soon</p>
-          </div>
-        )}
 
-        {/* Footer info */}
-        <div className="mt-12 text-center">
-           <p className="text-[8px] text-gray-600 uppercase tracking-[0.8em]">
-             End-to-End Sovereign Encryption Active // Node: Royal-Cluster-01
-           </p>
-        </div>
-      </main>
+          <motion.div whileHover={{ y: -5 }} className="bg-[#060606] border border-gray-900 rounded-2xl p-5 relative overflow-hidden transition-all duration-300 hover:border-[#22c55e]/30 shadow-md">
+              <div className="flex justify-between items-start">
+                  <div>
+                      <p className="text-gray-500 text-xs font-bold">المكالمات النشطة حالياً</p>
+                      <h3 className="text-[#22c55e] text-3xl font-black font-mono mt-2 flex items-center gap-2">
+                          <span>{activeCalls}</span>
+                          <span className="w-2 h-2 bg-[#22c55e] rounded-full animate-ping"></span>
+                      </h3>
+                  </div>
+                  <div className="p-3 bg-[#22c55e]/5 rounded-xl text-[#22c55e] border border-[#22c55e]/10">
+                      <PhoneCall className="w-5 h-5 animate-bounce" />
+                  </div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#22c55e]/50 to-transparent"></div>
+          </motion.div>
+
+          <motion.div whileHover={{ y: -5 }} className="bg-[#060606] border border-gray-900 rounded-2xl p-5 relative overflow-hidden transition-all duration-300 hover:border-neon-gold/30 shadow-md">
+              <div className="flex justify-between items-start">
+                  <div>
+                      <p className="text-gray-500 text-xs font-bold">رموز السيادة النشطة</p>
+                      <h3 className="text-neon-gold text-3xl font-black font-mono mt-2">{activeCodesCount}</h3>
+                  </div>
+                  <div className="p-3 bg-neon-gold/5 rounded-xl text-neon-gold border border-neon-gold/10">
+                      <Key className="w-5 h-5" />
+                  </div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-neon-gold/30 to-transparent"></div>
+          </motion.div>
+
+          <motion.div whileHover={{ y: -5 }} className="bg-[#060606] border border-gray-900 rounded-2xl p-5 relative overflow-hidden transition-all duration-300 hover:border-gray-800 shadow-md">
+              <div className="flex justify-between items-start">
+                  <div>
+                      <p className="text-gray-500 text-xs font-bold">معدل نقل البيانات (P2P)</p>
+                      <h3 className="text-gray-300 text-2xl font-black font-mono mt-2.5">94.2 Gbps</h3>
+                  </div>
+                  <div className="p-3 bg-gray-900 rounded-xl text-gray-400 border border-gray-800">
+                      <Activity className="w-5 h-5" />
+                  </div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-gray-800 to-transparent"></div>
+          </motion.div>
+
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Code Generation Section */}
+          <div className="bg-[#050505] border border-gray-900 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+              <div>
+                  <div className="flex items-center gap-2.5 mb-4">
+                      <Zap className="w-5 h-5 text-neon-gold drop-shadow-[0_0_5px_rgba(255,215,0,0.2)]" />
+                      <h2 className="text-white font-black text-lg">توليد رموز الاشتراك الملوكية</h2>
+                  </div>
+                  <p className="text-gray-500 text-xs mb-6 leading-relaxed">أنشئ أكواد ورموز مشفرة لبيعها للوكلاء والمستخدمين لتفعيل ميزات البث والاتصال المرئي الفخمة.</p>
+                  
+                  <div className="space-y-4">
+                      <div>
+                          <label className="block text-gray-400 text-xs font-bold mb-2">نوع الباقة الملكية</label>
+                          <select 
+                            value={codePlan}
+                            onChange={(e) => setCodePlan(e.target.value)}
+                            className="w-full bg-black border border-gray-900 rounded-xl px-4 py-3 text-gray-200 text-xs font-medium focus:border-[#22c55e] focus:outline-none transition-colors"
+                          >
+                              <option value="vip_sovereign">👑 باقة السيادة المطلقة (سنة كاملة)</option>
+                              <option value="prime_broadcast">⚡ باقة البث والمكالمات (6 أشهر)</option>
+                              <option value="test_drive">📡 كود تجريبي (شهر واحد)</option>
+                          </select>
+                      </div>
+                      <div>
+                          <label className="block text-gray-400 text-xs font-bold mb-2">عدد الأكواد المطلوبة</label>
+                          <input 
+                            type="number" 
+                            value={codeCount}
+                            onChange={(e) => setCodeCount(parseInt(e.target.value) || 1)}
+                            min="1" 
+                            max="50" 
+                            className="w-full bg-black border border-gray-900 rounded-xl px-4 py-2.5 text-white font-mono text-sm focus:border-[#22c55e] focus:outline-none"
+                          />
+                      </div>
+                  </div>
+              </div>
+
+              <button 
+                onClick={generateSovereignCodes}
+                disabled={isGenerating}
+                className="w-full mt-6 bg-gradient-to-r from-[#22c55e] to-[#4ade80] text-black font-black text-sm py-3.5 rounded-xl shadow-[0_4px_20px_rgba(34,197,94,0.25)] hover:shadow-[0_4px_30px_#22c55e] hover:scale-[1.01] transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                  {isGenerating ? <Loader2 className="w-4 h-4 animate-spin text-black" /> : 'صك وتوليد الأكواد الفورية ⚡'}
+              </button>
+          </div>
+
+          {/* User Management Section */}
+          <div className="lg:col-span-2 bg-[#050505] border border-gray-900 rounded-2xl p-6 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-gray-900 mb-6 gap-4">
+                  <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="w-5 h-5 text-[#22c55e] drop-shadow-[0_0_5px_rgba(34,197,94,0.2)]" />
+                      <h2 className="text-white font-black text-lg">التحكم بالمستكشفين والشبكة</h2>
+                  </div>
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
+                    <input 
+                      type="text" 
+                      placeholder="ابحث بالاسم أو البريد الإلكتروني..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-black border border-gray-900 rounded-xl px-9 py-2 text-xs text-white placeholder-gray-600 w-full focus:border-[#22c55e] focus:outline-none"
+                    />
+                  </div>
+              </div>
+
+              <div className="overflow-x-auto min-h-[300px]">
+                  {isLoadingUsers ? (
+                    <div className="flex items-center justify-center h-48">
+                      <Loader2 className="w-8 h-8 text-neon-gold animate-spin" />
+                    </div>
+                  ) : (
+                    <table className="w-full text-right border-collapse">
+                        <thead>
+                            <tr className="border-b border-gray-900 text-gray-500 text-xs font-bold">
+                                <th className="pb-3 pr-2">المستكشف</th>
+                                <th className="pb-3">البريد الإلكتروني</th>
+                                <th className="pb-3">الرتبة</th>
+                                <th className="pb-3">الحالة الأمنية</th>
+                                <th className="pb-3 pl-2 text-left">الإجراء والتحكم</th>
+                            </tr>
+                        </thead>
+                        <tbody className="text-xs font-medium divide-y divide-gray-950">
+                            {filteredUsers.map((u, idx) => (
+                              <tr key={u.id} className="hover:bg-white/[0.02] transition-colors group">
+                                <td className="py-4 pr-2">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-800">
+                                      <img 
+                                        src={u.avatar_url || `https://ui-avatars.com/api/?name=${u.username}&background=111&color=D4AF37`} 
+                                        alt={u.username}
+                                        className="w-full h-full object-cover" 
+                                      />
+                                    </div>
+                                    <span className="font-bold text-gray-200">{u.username}</span>
+                                  </div>
+                                </td>
+                                <td className="py-4 text-gray-500 font-mono text-[10px]">{u.id.substring(0, 15)}...</td>
+                                <td className="py-4">
+                                  <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${u.role === 'admin' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : u.role === 'agent' ? 'bg-neon-gold/10 text-neon-gold border border-neon-gold/20' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
+                                    {u.role || 'user'}
+                                  </span>
+                                </td>
+                                <td className="py-4">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-1.5 h-1.5 rounded-full ${u.status === 'banned' ? 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]' : 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]'}`} />
+                                    <span className={u.status === 'banned' ? 'text-red-500' : 'text-green-500'}>{u.status === 'banned' ? 'محظور' : 'نشط'}</span>
+                                  </div>
+                                </td>
+                                <td className="py-4 pl-2 text-left">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button 
+                                      onClick={() => toggleUserRole(u.id, u.role || 'user')}
+                                      className="px-3 py-1.5 bg-black border border-gray-900 rounded-lg text-gray-400 hover:text-neon-gold hover:border-neon-gold/40 transition-all font-bold text-[10px] uppercase"
+                                    >
+                                      ترقية
+                                    </button>
+                                    <button 
+                                      onClick={() => toggleUserStatus(u.id, u.status)}
+                                      className={`px-3 py-1.5 rounded-lg border transition-all font-bold text-[10px] uppercase ${u.status === 'banned' ? 'bg-green-500/10 border-green-500/20 text-green-500 hover:bg-green-500 hover:text-black' : 'bg-red-950/20 border-red-900/30 text-red-400 hover:bg-red-600 hover:text-white'}`}
+                                    >
+                                      {u.status === 'banned' ? 'إلغاء' : 'حظر قطعي'}
+                                    </button>
+                                    <button className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 text-gray-500 hover:text-white transition-all">
+                                      <MoreVertical className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                  )}
+              </div>
+          </div>
+
+      </div>
     </div>
   );
 }
