@@ -12,7 +12,11 @@ import {
   Phone,
   LayoutDashboard,
   Trees,
-  Sword
+  Sword,
+  MessageCircle,
+  ShieldCheck,
+  TriangleAlert,
+  ChevronLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useRef } from 'react';
@@ -126,6 +130,51 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const { showToast } = useToast();
+
+  const handleSwitchChannel = (channel: 'general' | 'verification' | 'support') => {
+    if (channel === 'general') {
+      setViewMode('chats');
+      if (globalRoomId) {
+        const globalRoom = rooms.find(r => r.id === globalRoomId);
+        if (globalRoom) {
+          setSelectedRoom(globalRoom);
+          showToast("تم التحويل إلى شات SNNS العام 👑", 'royal');
+        }
+      }
+    } else if (channel === 'verification') {
+      showToast("سيتم فتح نظام طلبات التوثيق السيادي قريباً! 👑", 'info');
+    } else if (channel === 'support') {
+      const supportRoomName = "الدعم الفني والشكاوي (AI Support)";
+      const existingSupportRoom = rooms.find(r => r.name === supportRoomName);
+      
+      if (existingSupportRoom) {
+        setSelectedRoom(existingSupportRoom);
+        showToast("تم فتح قناة الدعم الذكي ⚡", 'info');
+      } else {
+        // Create a dedicated support room for this user
+        (async () => {
+          try {
+            const { addDoc, collection, serverTimestamp } = await import('firebase/firestore');
+            const roomData = {
+              name: supportRoomName,
+              isGroup: false,
+              isSupport: true, // Tagging it for AI logic
+              memberIds: [user.uid, '00000000-0000-0000-0000-000000000000'], // User + AI Bot ID
+              lastMessage: 'أهلاً بك في الدعم الفني السيادي. كيف يمكننا مساعدتك؟',
+              lastMessageTime: serverTimestamp(),
+              createdBy: 'system',
+              avatarUrl: ''
+            };
+            const docRef = await addDoc(collection(db, 'rooms'), roomData);
+            setSelectedRoom({ id: docRef.id, ...roomData, is_group: false, avatar_url: '' } as any);
+            showToast("رادار الدعم الفني الذكي (AI) نشط وسيتواصل معك خلال دقائق! ⚡", 'info');
+          } catch (err) {
+            console.error("Support room creation failed", err);
+          }
+        })();
+      }
+    }
+  };
 
   const stopRingtone = () => {
     if (currentAudioRef.current) {
@@ -613,6 +662,43 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
               />
             </div>
           </header>
+
+          <div className="flex flex-col gap-2 p-4 border-b border-white/5 bg-[#040404] font-cairo select-none" dir="rtl">
+            <p className="text-gray-600 text-[10px] font-black uppercase tracking-widest mb-1">الخدمات السيادية الذكية</p>
+
+            <button 
+              onClick={() => handleSwitchChannel('general')}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-[#0a0a0a] border border-[#22c55e]/30 shadow-[0_0_15px_rgba(34,197,94,0.1)] text-white hover:scale-[1.01] transition-all duration-300 group"
+            >
+                <div className="flex items-center gap-2.5">
+                    <MessageCircle className="w-4 h-4 text-[#22c55e] drop-shadow-[0_0_5px_#22c55e]" />
+                    <span className="font-black text-xs">شات SNNS العام</span>
+                </div>
+                <span className="w-2 h-2 bg-[#22c55e] rounded-full animate-pulse"></span>
+            </button>
+
+            <button 
+              onClick={() => handleSwitchChannel('verification')}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-[#070707] border border-gray-950 text-gray-400 hover:text-[#D4AF37] hover:border-[#D4AF37]/20 transition-all duration-300 group"
+            >
+                <div className="flex items-center gap-2.5">
+                    <ShieldCheck className="w-4 h-4 text-[#D4AF37]/80" />
+                    <span className="font-bold text-xs">طلب توثيق حساب</span>
+                </div>
+                <ChevronLeft className="w-3 h-3 text-[10px]" />
+            </button>
+
+            <button 
+              onClick={() => handleSwitchChannel('support')}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-[#070707] border border-gray-950 text-gray-400 hover:text-red-400 hover:border-red-900/30 transition-all duration-300 group"
+            >
+                <div className="flex items-center gap-2.5">
+                    <TriangleAlert className="w-4 h-4 text-red-500/80" />
+                    <span className="font-bold text-xs">بلاغات ومشاكل تقنية</span>
+                </div>
+                <span className="px-1.5 py-0.5 bg-red-950/40 text-red-400 border border-red-900/40 text-[9px] font-mono rounded-md">AI ACTIVE</span>
+            </button>
+          </div>
 
           <section className="flex-1 overflow-y-auto scrollbar-hide py-4 relative">
             {loading || isLoadingUsers ? (

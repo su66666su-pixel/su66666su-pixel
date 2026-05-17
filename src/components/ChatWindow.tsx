@@ -255,6 +255,11 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
           read_by: [user.uid], // Sync readBy
           created_at: new Date().toISOString()
         });
+
+      // 3. Trigger AI Support if this is a support room
+      if ((room as any).isSupport && textToSend) {
+        handleIncomingAiSupport(textToSend, user.uid, messageData.senderName);
+      }
         
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `rooms/${room.id}/messages`);
@@ -361,6 +366,56 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
       showToast(`تم إرسال ${gift.name} بنجاح! 👑`, 'royal');
     } else {
       showToast("عذراً، رصيدك غير كافٍ لهذا الكرم الملكي!", 'error');
+    }
+  };
+
+  const sendTelegramAlert = (msg: string) => {
+    console.log("📡 [TELEGRAM ALERT SYSTEM]:", msg);
+    // In a real production environment, this would call a backend function to notify admins
+  };
+
+  const handleIncomingAiSupport = async (messageContent: string, senderId: string, senderName: string) => {
+    const content = messageContent.toLowerCase();
+    let aiResponse = "";
+
+    // 1. Analyze issue based on keywords
+    if (content.includes("كود") || content.includes("تفعيل") || content.includes("اشتراك")) {
+        aiResponse = `أهلاً بك مستكشف [ ${senderName} ]، إذا واجهت مشكلة UUID في رمز التفعيل، فضلاً تأكد من تسجيل الخروج والدخول مرة أخرى عبر Google لتحديث رخصتك السيادية في النظام الحركي لـ SNNS.`;
+    } 
+    else if (content.includes("اتصال") || content.includes("كاميرا") || content.includes("صوت")) {
+        aiResponse = `مرحباً بك، نظام الاتصال المرئي في SNNS يعتمد بروتوكول P2P المشفر بالكامل. فضلاً امنح متصفحك صلاحية الوصول للكاميرا والميكروفون من إعدادات القفل في شريط الرابط أعلى الشاشة لتبدأ البث الحقيقي.`;
+    }
+    else if (content.includes("بلاغ") || content.includes("اختراق") || content.includes("حظر")) {
+        aiResponse = `🚨 تم التقاط البلاغ الأمني بنجاح وتحويله فوراً لغرفة القيادة والسيطرة الخاصة بالمسؤول سلطان القحطاني. يجري فحص العقدة الآن.`;
+        sendTelegramAlert(`🚨 بلاغ أمني عاجل من ${senderName}: ${messageContent}`);
+    }
+
+    // 2. Generate AI response if match found
+    if (aiResponse) {
+        setTimeout(async () => {
+            const aiBotId = '00000000-0000-0000-0000-000000000000';
+            const aiBotName = '💡 SNNS AI المساعد الذكي';
+
+            // Insert into Firebase
+            await addDoc(collection(db, 'rooms', room.id, 'messages'), {
+                senderId: aiBotId,
+                senderName: aiBotName,
+                content: aiResponse,
+                timestamp: serverTimestamp(),
+                fileType: 'text',
+                readBy: [aiBotId]
+            });
+
+            // Insert into Supabase
+            await supabase.from('messages').insert({
+                room_id: room.id,
+                sender_id: aiBotId,
+                sender_name: aiBotName,
+                content: aiResponse,
+                channel_type: 'support', // As requested in snippet
+                created_at: new Date().toISOString()
+            });
+        }, 1500);
     }
   };
 
