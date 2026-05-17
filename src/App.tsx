@@ -218,11 +218,12 @@ export default function App() {
                       <div className="relative">
                           <input 
                             type="email" 
+                            id="loginEmail" 
                             required 
-                            placeholder="name@snns.shop" 
+                            placeholder="su66666su@gmail.com" 
                             value={loginEmail}
                             onChange={(e) => setLoginEmail(e.target.value)}
-                            className="w-full bg-black border border-gray-900 rounded-xl px-4 py-3 pl-10 text-white text-sm font-mono focus:border-[#22c55e] focus:outline-none transition-all duration-300 placeholder-gray-700 text-left"
+                            className="w-full bg-[#0a0a0a] border border-gray-900 rounded-xl px-4 py-3 pl-10 text-gray-250 text-sm font-mono focus:border-[#22c55e] focus:shadow-[0_0_15px_rgba(34,197,94,0.15)] focus:outline-none transition-all duration-300 placeholder-gray-700 text-left"
                             dir="ltr"
                           />
                           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 w-4 h-4" />
