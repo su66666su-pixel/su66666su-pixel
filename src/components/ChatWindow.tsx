@@ -114,6 +114,7 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
           sender_id,
           sender_name,
           file_url,
+          image_url,
           file_type,
           read_by,
           profiles:sender_id (
@@ -132,8 +133,8 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
           senderName: msg.profiles?.username || msg.sender_name,
           senderAvatar: msg.profiles?.avatar_url,
           content: msg.content,
-          fileUrl: msg.file_url,
-          fileType: msg.file_type || 'text',
+          fileUrl: msg.file_url || msg.image_url,
+          fileType: msg.file_type || (msg.image_url ? 'image' : 'text'),
           readBy: msg.read_by || [],
           timestamp: { toDate: () => new Date(msg.created_at) } as any
         }));
@@ -211,8 +212,8 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
               senderId: msg.sender_id,
               senderName: msg.sender_name,
               content: msg.content,
-              fileUrl: msg.file_url,
-              fileType: msg.file_type || 'text',
+              fileUrl: msg.file_url || msg.image_url,
+              fileType: msg.file_type || (msg.image_url ? 'image' : 'text'),
               readBy: msg.read_by || [],
               timestamp: msg.created_at ? { toDate: () => new Date(msg.created_at) } as any : null
             };
@@ -309,8 +310,10 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
           room_id: room.id,
           sender_id: user.uid,
           sender_name: messageData.senderName,
-          content: textToSend || null,
+          sender_username: user.displayName || user.email.split('@')[0], // Requested for cross-platform identity
+          content: textToSend || (fileData?.type === 'image' ? "📸 أرسل صورة:" : null),
           file_url: fileData?.url || null,
+          image_url: fileData?.type === 'image' ? fileData.url : null, // Specific field requested
           file_type: fileData?.type || 'text',
           burn_after: messageData.burnAfter,
           read_by: [user.uid], // Sync readBy
@@ -373,13 +376,13 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
 
     const file = previewFile;
     const fileName = `${Date.now()}_${file.name}`;
-    const filePath = `uploads/${fileName}`;
+    const filePath = `chat_images/${fileName}`;
 
     setIsUploading(true);
     try {
-      // 1. Upload to Supabase Storage
+      // 1. Upload to Supabase Storage (Sovereign Media Bucket)
       const { error } = await supabase.storage
-        .from('snns-files')
+        .from('snns_media')
         .upload(filePath, file);
 
       if (error) {
@@ -389,7 +392,7 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
 
       // 2. Get Public URL
       const { data: publicUrlData } = supabase.storage
-        .from('snns-files')
+        .from('snns_media')
         .getPublicUrl(filePath);
 
       const publicUrl = publicUrlData.publicUrl;

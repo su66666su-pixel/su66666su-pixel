@@ -93,6 +93,13 @@
     animation: neonGlow 2s ease-in-out infinite alternate;
   }
 
+  .text-gold-sovereign {
+    background: linear-gradient(to right, #D4AF37 0%, #F1D17C 50%, #D4AF37 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 900;
+  }
+
   @keyframes neonGlow {
     from {
       text-shadow: 0 0 5px var(--neon-gold), 0 0 10px var(--neon-gold), 0 0 20px rgba(var(--neon-gold-rgb), 0.5);

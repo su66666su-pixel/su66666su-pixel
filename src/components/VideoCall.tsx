@@ -190,155 +190,166 @@ export default function VideoCall({ onHangUp, targetName, targetUserId }: VideoC
   };
 
   return (
-    <div className="fixed inset-0 bg-black/95 z-[150] flex flex-col justify-between p-6 font-sans select-none animate-in fade-in duration-500">
+    <div className="fixed inset-0 bg-[#020202]/95 z-[250] flex items-center justify-center p-4 font-cairo select-none overflow-hidden backdrop-blur-md">
       
-      {/* Header */}
-      <div className="flex items-center justify-between w-full border-b border-gray-900 pb-4">
-          <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-[#22c55e] rounded-full shadow-[0_0_10px_#22c55e] animate-pulse" />
-              <span className="text-white font-black tracking-wide" dir="rtl">اتصال مرئي سيادي مشفر</span>
-          </div>
-          <span className="text-[#D4AF37] text-xs font-mono bg-[#111] border border-[#D4AF37]/30 px-3 py-1 rounded-full">P2P SECURE</span>
-      </div>
-
-      {/* Video Content */}
-      <div className="relative flex-1 w-full max-w-4xl mx-auto my-4 bg-[#050505] border border-gray-900 rounded-3xl overflow-hidden shadow-[0_0_5px_rgba(34,197,94,0.1)]">
-          {/* Remote Video (Guest) */}
-          <div className="w-full h-full bg-black relative">
-            <video 
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-6 z-0 pointer-events-none">
-               <div className="w-32 h-32 border border-white/5 p-2 bg-[#0c0c0c] relative">
-                <img 
-                  src={`https://ui-avatars.com/api/?name=${targetName}&background=111&color=555&size=256`} 
-                  alt="Guest" 
-                  className="w-full h-full object-cover filter grayscale opacity-30"
-                />
-                <div className="absolute inset-[-10px] border border-white/5 animate-ping opacity-20" />
-              </div>
-              <p className="text-gray-text text-xs uppercase tracking-[0.4em]">Establishing Secure Node...</p>
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="w-full max-w-4xl bg-[#050505] border border-gray-900 rounded-[2.5rem] overflow-hidden shadow-[0_0_80px_rgba(34,197,94,0.1)] relative flex flex-col h-[600px]"
+      >
+        {/* Header */}
+        <div className="p-5 bg-black/60 border-b border-gray-900/50 flex items-center justify-between backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+                <span className="w-2 h-2 bg-[#22c55e] rounded-full shadow-[0_0_12px_#22c55e] animate-pulse"></span>
+                <span className="text-white font-black text-xs tracking-[0.2em] uppercase">SECURE LIVE CALL</span>
             </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[#22c55e] text-[10px] font-mono bg-[#22c55e]/5 px-3 py-1 border border-[#22c55e]/20 rounded-lg font-black tracking-widest hidden sm:block">
+                {formatTime(timer)} ● LIVE
+              </span>
+              <span className="text-[10px] text-[#D4AF37] bg-[#D4AF37]/5 px-3 py-1 border border-[#D4AF37]/20 rounded-lg font-black font-mono tracking-widest">
+                E2EE VIA SNNS-TURN
+              </span>
+            </div>
+        </div>
+
+        {/* Video Stage */}
+        <div className="flex-grow bg-[#010101] relative p-6 flex gap-4 items-center justify-center overflow-hidden">
             
-            {/* Gift Animation Container */}
-            <AnimatePresence>
-              {activeGift && (
-                <motion.div 
-                  initial={{ scale: 0.5, opacity: 0, y: 50 }}
-                  animate={{ scale: [0.5, 1.2, 1], opacity: 1, y: 0 }}
-                  exit={{ scale: 1.5, opacity: 0 }}
-                  className="absolute inset-0 z-50 flex items-center justify-center p-20"
-                >
-                  <div className="relative flex flex-col items-center">
-                    <span className="text-9xl animate-bounce drop-shadow-[0_0_40px_rgba(255,215,0,0.5)]">
-                      {activeGift.emoji}
-                    </span>
-                    <span className="mt-4 text-[#FFD700] font-black text-xl uppercase tracking-widest bg-black/80 px-4 py-2 border border-gold/30">
-                      {activeGift.name} Received
-                    </span>
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#22c55e 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }}></div>
+
+            {/* Remote Video Container */}
+            <div className="w-full h-full bg-[#070707] border border-gray-900 rounded-3xl relative overflow-hidden flex items-center justify-center group shadow-inner">
+                {errorStatus ? (
+                  <div className="flex flex-col items-center gap-4 text-center p-10">
+                    <Shield className="w-16 h-16 text-red-500/20" />
+                    <p className="text-red-500 font-black text-sm uppercase tracking-widest">{errorStatus}</p>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Local Video (PIP) */}
-          <div className="absolute bottom-4 right-4 w-40 h-56 bg-[#0a0a0a] border-2 border-[#22c55e] rounded-xl overflow-hidden shadow-[0_0_20px_rgba(34,197,94,0.3)] z-20 group">
-              {errorStatus ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#080808] p-4 text-center">
-                   <Shield className="w-8 h-8 text-neon-gold/20 mb-2" />
-                   <p className="text-neon-gold font-bold text-[10px] uppercase">{errorStatus}</p>
-                </div>
-              ) : (
-                <>
+                ) : (
                   <video 
-                    ref={localVideoRef} 
+                    ref={remoteVideoRef} 
                     autoPlay 
-                    muted 
                     playsInline 
-                    className={`w-full h-full object-cover grayscale brightness-110 transition-all duration-700 ${!isVideoOn ? 'opacity-0' : 'opacity-100'}`}
+                    className="w-full h-full object-cover bg-black"
                   />
-                  {!isVideoOn && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-[#080808]">
-                       <VideoOff className="w-8 h-8 text-gold/10" />
-                    </div>
+                )}
+                
+                <div className="absolute bottom-6 right-6 bg-black/80 border border-gray-800/50 px-4 py-2 rounded-2xl flex items-center gap-3 backdrop-blur-md shadow-xl transition-transform group-hover:scale-105" dir="rtl">
+                    <span className="text-white text-xs font-black tracking-tight">{targetName}</span>
+                    <div className="w-1.5 h-1.5 bg-[#22c55e] rounded-full shadow-[0_0_8px_#22c55e]"></div>
+                </div>
+
+                {/* Gift Overlay */}
+                <AnimatePresence>
+                  {activeGift && (
+                    <motion.div 
+                      initial={{ scale: 0.5, opacity: 0, y: 50 }}
+                      animate={{ scale: [0.5, 1.2, 1], opacity: 1, y: 0 }}
+                      exit={{ scale: 1.5, opacity: 0 }}
+                      className="absolute inset-0 z-50 flex items-center justify-center p-10 pointer-events-none"
+                    >
+                      <div className="relative flex flex-col items-center">
+                        <span className="text-9xl animate-bounce drop-shadow-[0_0_50px_rgba(255,215,0,0.4)]">
+                          {activeGift.emoji}
+                        </span>
+                        <motion.span 
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-6 text-[#FFD700] font-black text-xl uppercase tracking-[0.3em] bg-black/90 px-6 py-3 border border-gold/30 rounded-xl shadow-2xl backdrop-blur-xl"
+                        >
+                          {activeGift.name} Received
+                        </motion.span>
+                      </div>
+                    </motion.div>
                   )}
-                </>
-              )}
-              {/* Controls inside PIP on hover */}
-              <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                 {!isMicOn && <MicOff className="w-3 h-3 text-red-500 fill-red-500/20" />}
-              </div>
-          </div>
-          
-          {/* Call Info Overlay */}
-          <div className="absolute top-4 left-4 bg-black/60 px-4 py-2 rounded-xl border border-gray-800 z-10" dir="rtl">
-              <p className="text-white font-bold text-sm tracking-wide">{targetName}</p>
-              <p className="text-[#22c55e] text-xs font-mono mt-0.5" dir="ltr">{formatTime(timer)}</p>
-          </div>
-      </div>
+                </AnimatePresence>
+            </div>
 
-      {/* Control Actions */}
-      <div className="flex items-center justify-center gap-6 pb-4">
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={toggleMic}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 border ${
-              isMicOn 
-                ? 'bg-[#111] border-gray-800 text-white hover:text-[#22c55e] hover:border-[#22c55e]' 
-                : 'bg-red-500/10 border-red-500/50 text-red-500'
-            }`}
-          >
-              {isMicOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-          </motion.button>
+            {/* Local Video Container (PIP) */}
+            <motion.div 
+              drag
+              dragConstraints={{ left: -300, right: 300, top: -200, bottom: 200 }}
+              className="absolute top-10 left-10 w-44 h-60 bg-[#0a0a0a] border-2 border-[#22c55e]/30 rounded-3xl overflow-hidden shadow-2xl z-40 group cursor-move hover:border-[#22c55e]/60 transition-all duration-300"
+            >
+                <video 
+                  ref={localVideoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  className={`w-full h-full object-cover bg-black scale-x-[-1] transition-opacity duration-500 ${isVideoOn ? 'opacity-100' : 'opacity-0'}`}
+                />
+                {!isVideoOn && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-950">
+                    <VideoOff className="w-8 h-8 text-white/5" />
+                  </div>
+                )}
+                <div className="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded-xl text-[10px] text-gray-300 font-black backdrop-blur-md border border-white/5">أنت (المستكشف)</div>
+                <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                   {!isMicOn && <MicOff className="w-4 h-4 text-red-500 drop-shadow-[0_0_5px_rgba(220,38,38,0.5)]" />}
+                </div>
+            </motion.div>
 
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onHangUp}
-            className="w-16 h-16 rounded-full bg-red-600/20 border-2 border-red-600 text-red-500 hover:bg-red-600 hover:text-white shadow-[0_0_20px_rgba(220,38,38,0.2)] transition-all duration-300 flex items-center justify-center"
-          >
-              <PhoneOff className="w-6 h-6 rotate-[135deg]" />
-          </motion.button>
+        </div>
 
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={toggleVideo}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 border ${
-              isVideoOn 
-                ? 'bg-[#111] border-gray-800 text-white hover:text-[#22c55e] hover:border-[#22c55e]' 
-                : 'bg-red-500/10 border-red-500/50 text-red-500'
-            }`}
-          >
-              {isVideoOn ? <VideoIcon className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-          </motion.button>
+        {/* Controls Footer */}
+        <div className="p-8 bg-black/80 border-t border-gray-900 flex items-center justify-center gap-6 relative backdrop-blur-md">
+            
+            <button 
+                onClick={toggleMic}
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border shadow-lg group ${
+                  isMicOn 
+                  ? 'bg-[#090909] border-gray-800 text-gray-400 hover:text-[#22c55e] hover:border-[#22c55e]/40' 
+                  : 'bg-red-500/10 border-red-500/40 text-red-500 shadow-[0_0_15px_rgba(220,38,38,0.15)]'
+                }`}
+            >
+                {isMicOn ? <Mic className="w-5 h-5 group-hover:scale-110 transition-transform" /> : <MicOff className="w-5 h-5" />}
+            </button>
 
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setShowGifts(!showGifts)}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 border border-gray-800 ${
-              showGifts ? 'bg-gold/20 border-gold/50 text-gold' : 'bg-[#111] text-gray-400 hover:text-gold'
-            }`}
-          >
-              <GiftIcon className="w-5 h-5" />
-          </motion.button>
-      </div>
+            <button 
+                onClick={onHangUp}
+                className="px-10 h-14 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 text-white font-black text-xs shadow-[0_8px_30px_rgba(220,38,38,0.3)] hover:shadow-[0_8px_40px_#dc2626] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-3 group"
+            >
+                <PhoneOff className="w-5 h-5 rotate-[135deg] group-hover:animate-bounce" /> 
+                <span dir="rtl">إنهاء الاتصال الآمن</span>
+            </button>
 
-      {/* Gift Selector Overlay */}
-      <AnimatePresence mode="wait">
-        {showGifts && (
-          <GiftSelector 
-            onSendGift={handleSendGift} 
-            onClose={() => setShowGifts(false)}
-          />
-        )}
-      </AnimatePresence>
+            <button 
+                onClick={toggleVideo}
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border shadow-lg group ${
+                  isVideoOn 
+                  ? 'bg-[#090909] border-gray-800 text-gray-400 hover:text-[#22c55e] hover:border-[#22c55e]/40' 
+                  : 'bg-red-500/10 border-red-500/40 text-red-500 shadow-[0_0_15px_rgba(220,38,38,0.15)]'
+                }`}
+            >
+                {isVideoOn ? <VideoIcon className="w-5 h-5 group-hover:scale-110 transition-transform" /> : <VideoOff className="w-5 h-5" />}
+            </button>
+
+            <button 
+              onClick={() => setShowGifts(!showGifts)}
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border shadow-lg group ${
+                showGifts 
+                ? 'bg-[#D4AF37]/10 border-[#D4AF37]/40 text-[#D4AF37]' 
+                : 'bg-[#090909] border-gray-800 text-gray-400 hover:text-[#D4AF37] hover:border-[#D4AF37]/40'
+              }`}
+            >
+                <GiftIcon className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            </button>
+
+        </div>
+
+        {/* Gift Selector Overlay */}
+        <AnimatePresence mode="wait">
+          {showGifts && (
+            <GiftSelector 
+              onSendGift={handleSendGift} 
+              onClose={() => setShowGifts(false)}
+            />
+          )}
+        </AnimatePresence>
+
+      </motion.div>
     </div>
   );
+
 }

@@ -14,3 +14,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 // تصدير المحرك ليعمل في كامل صفحات الموقع (الهبوط، الشات، الآدمن)
 (window as any).supabase = supabase;
+
+export const isUUID = (str: string) => {
+    if (!str) return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+};

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Lock, Loader2, Sparkles, UserPlus, ShieldAlert } from 'lucide-react';
-import { supabase } from '../supabase';
+import { supabase, isUUID } from '../supabase';
 import { handleUserAction } from '../services/userActions';
 import { useToast } from './Toast';
 
@@ -33,7 +33,7 @@ export default function ActiveUsersSidebar({ currentUser, onStartChat }: { curre
 
         let query = supabase.from('user_profiles').select('*').eq('is_visible', true);
         
-        if (myId) {
+        if (myId && isUUID(myId)) {
           query = query.neq('id', myId);
         }
 

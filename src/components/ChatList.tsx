@@ -34,6 +34,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import ChatWindow from './ChatWindow';
+import VideoFeed from './VideoFeed';
 import IncomingCallModal from './IncomingCallModal';
 import VideoCall from './VideoCall';
 import ActiveUsersSidebar from './ActiveUsersSidebar';
@@ -127,7 +128,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [userProfile, setUserProfile] = useState<any>(null);
   const [globalRoomId, setGlobalRoomId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'chats' | 'users'>('chats');
+  const [viewMode, setViewMode] = useState<'chats' | 'users' | 'videos'>('chats');
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const { showToast } = useToast();
@@ -145,8 +146,9 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
     } else if (channel === 'verification') {
       showToast("سيتم فتح نظام طلبات التوثيق السيادي قريباً! 👑", 'info');
     } else if (channel === 'videos') {
+      setViewMode('videos');
+      setSelectedRoom(null);
       showToast("رادار فيديوهات المستكشفين نشط حالياً! 🎥⚡", 'royal');
-      // In a real app, this would change viewMode to 'videos' and show a feed
     } else if (channel === 'support') {
       const supportRoomName = "الدعم الفني والشكاوي (AI Support)";
       const existingSupportRoom = rooms.find(r => r.name === supportRoomName);
@@ -590,21 +592,32 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         <div className="absolute top-24 bottom-24 w-[2px] bg-gradient-to-b from-[#22c55e] via-[#22c55e]/30 to-transparent shadow-[0_0_15px_rgba(34,197,94,0.2)] z-0"></div>
 
         <div className="flex flex-col items-center gap-10 mt-10 z-10 w-full">
-
             <button 
-              onClick={() => setViewMode('chats')}
+              onClick={() => {
+                setViewMode('chats');
+                setSelectedRoom(null);
+              }}
               className={`relative p-3 rounded-xl transition-all duration-300 group ${viewMode === 'chats' ? 'text-[#22c55e] bg-[#070707] border border-[#22c55e]/40 shadow-[0_0_20px_rgba(34,197,94,0.25)] scale-105' : 'text-gray-400 hover:text-[#22c55e] hover:bg-black hover:border hover:border-[#22c55e]/20 hover:shadow-[0_0_15px_rgba(34,197,94,0.15)]'}`}
             >
                 <MessageSquare className={`w-6 h-6 transition-transform duration-300 group-hover:scale-110`} />
                 {viewMode === 'chats' && <div className="absolute inset-0 bg-[#22c55e]/5 rounded-xl blur-sm -z-10"></div>}
             </button>
 
-            <button className="p-3 text-gray-400 rounded-xl transition-all duration-300 hover:text-[#22c55e] hover:bg-black hover:border hover:border-[#22c55e]/20 hover:shadow-[0_0_15px_rgba(34,197,94,0.15)] group">
-                <Phone className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
+            <button 
+              onClick={() => {
+                setViewMode('videos');
+                setSelectedRoom(null);
+              }}
+              className={`relative p-3 rounded-xl transition-all duration-300 group ${viewMode === 'videos' ? 'text-[#22c55e] bg-[#070707] border border-[#22c55e]/40 shadow-[0_0_20px_rgba(34,197,94,0.25)] scale-105' : 'text-gray-400 hover:text-[#22c55e] hover:bg-black hover:border hover:border-[#22c55e]/20 hover:shadow-[0_0_15px_rgba(34,197,94,0.15)]'}`}
+            >
+                <Clapperboard className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
             </button>
 
             <button 
-              onClick={() => setViewMode('users')}
+              onClick={() => {
+                setViewMode('users');
+                setSelectedRoom(null);
+              }}
               className={`relative p-3 rounded-xl transition-all duration-300 group ${viewMode === 'users' ? 'text-[#22c55e] bg-[#070707] border border-[#22c55e]/40 shadow-[0_0_20px_rgba(34,197,94,0.25)] scale-105' : 'text-[#D4AF37]/80 hover:text-[#22c55e] hover:bg-black hover:border hover:border-[#22c55e]/20 hover:shadow-[0_0_15px_rgba(34,197,94,0.15)]'}`}
             >
                 <Users className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
@@ -826,7 +839,17 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         {/* Chat Window Column */}
         <div className={`flex-1 ${!selectedRoom ? 'hidden lg:flex' : 'flex'}`}>
           <AnimatePresence mode="wait">
-            {selectedRoom ? (
+            {viewMode === 'videos' ? (
+              <motion.div 
+                key="video-feed"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="w-full h-full"
+              >
+                <VideoFeed />
+              </motion.div>
+            ) : selectedRoom ? (
               <motion.div 
                 key={selectedRoom.id}
                 initial={{ opacity: 0, x: 20 }}

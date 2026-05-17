@@ -4,6 +4,7 @@ import { Crown, ShieldCheck, Stars, Shield, Trees, Sword, Mail, Bolt, Loader2 } 
 import { auth, googleProvider } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
 import ChatList from './components/ChatList';
+import AdminDashboard from './components/AdminDashboard';
 import { useToast } from './components/Toast';
 import { supabase } from './supabase';
 
@@ -12,16 +13,44 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [view, setView] = useState<'user' | 'admin'>('user');
   const { showToast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    document.title = "SNNS PRO - SNNS";
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      if (user) {
+        checkAdminRole(user.uid);
+      } else {
+        setIsAdmin(false);
+        setView('user');
+      }
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
+
+  const checkAdminRole = async (uid: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', uid)
+        .single();
+      
+      if (data && (data.role === 'admin' || data.role === 'owner')) {
+        setIsAdmin(true);
+      }
+    } catch (err) {
+      console.error("Error checking admin role:", err);
+    }
+  };
 
   const [loginEmail, setLoginEmail] = useState('');
 
@@ -144,7 +173,37 @@ export default function App() {
   return (
     <>
       {user ? (
-        <ChatList user={user} onLogout={handleLogout} />
+        <>
+          {isAdmin && (
+            <div className="fixed bottom-6 left-6 z-[200] flex gap-2">
+               <button 
+                onClick={() => setView(view === 'user' ? 'admin' : 'user')}
+                className={`px-6 py-3 rounded-2xl font-black text-xs transition-all shadow-2xl flex items-center gap-3 border ${
+                  view === 'user' 
+                  ? 'bg-black text-[#22c55e] border-[#22c55e]/30' 
+                  : 'bg-black text-[#D4AF37] border-[#D4AF37]/30'
+                }`}
+               >
+                 {view === 'user' ? (
+                   <>
+                     <ShieldCheck className="w-4 h-4" />
+                     <span>دخول لوحة الإدارة السيادية</span>
+                   </>
+                 ) : (
+                   <>
+                     <Bolt className="w-4 h-4" />
+                     <span>العودة للواجهة الملكية</span>
+                   </>
+                 )}
+               </button>
+            </div>
+          )}
+          {view === 'admin' && isAdmin ? (
+             <AdminDashboard />
+          ) : (
+             <ChatList user={user} onLogout={handleLogout} />
+          )}
+        </>
       ) : (
         <div className="relative min-h-screen bg-dark-bg text-off-white font-sans selection:bg-gold selection:text-black overflow-hidden flex flex-col">
           {/* Background Decor */}
@@ -161,178 +220,185 @@ export default function App() {
       </div>
 
       {/* Top Navigation */}
-      <nav className="z-20 px-12 py-8 flex justify-between items-center bg-transparent">
-        <div className="flex items-center gap-4 select-none group cursor-default">
-            <div className="relative w-14 h-14 flex items-center justify-center bg-[#050505] border-2 border-gold rounded-2xl shadow-[0_0_30px_rgba(34,197,94,0.2)] transition-all duration-500 group-hover:scale-105">
+      <header className="z-20 px-6 sm:px-12 py-6 flex justify-between items-center bg-[#050505] border-b border-gray-900">
+        <div className="flex items-center gap-3">
+            <div className="w-12 h-10 border-2 border-[#D4AF37] rounded-xl flex items-center justify-center p-1 bg-black shadow-[0_0_15px_rgba(212,175,55,0.2)]">
                 <div className="flex flex-col items-center justify-center">
-                    <motion.div
-                      animate={{ opacity: [0.5, 1, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="text-[#22c55e] drop-shadow-[0_0_8px_#22c55e]"
-                    >
-                      <Trees className="w-6 h-6 mb-0.5" />
-                    </motion.div>
-                    <div className="flex gap-1 -mt-1 text-gold">
-                        <Sword className="w-3 h-3 rotate-45" />
-                        <Sword className="w-3 h-3 -rotate-45" />
-                    </div>
+                    <Trees className="w-5 h-5 text-[#22c55e]" />
                 </div>
-                <div className="absolute top-1 left-1 w-1.5 h-1.5 bg-[#22c55e] rounded-full shadow-[0_0_8px_#22c55e]"></div>
             </div>
+            <div className="flex flex-col">
+                <span className="text-white text-lg font-black tracking-tighter">SNNS <span className="text-[#22c55e]">PRO</span></span>
+                <span className="text-gray-500 text-[10px] -mt-1 font-bold">شبكة العقدة السيادية • المملكة العربية السعودية</span>
+            </div>
+        </div>
+        <nav className="hidden md:flex gap-8 items-center">
+            <a href="#" className="text-gray-400 text-[10px] uppercase font-black tracking-widest hover:text-white transition-all">الأمان</a>
+            <a href="#" className="text-gray-400 text-[10px] uppercase font-black tracking-widest hover:text-white transition-all">الهيكلية</a>
+            <a href="#" className="text-gray-400 text-[10px] uppercase font-black tracking-widest hover:text-white transition-all">الدعم</a>
+        </nav>
+      </header>
+
+      <main className="flex-1 flex items-center justify-center py-16 px-6 lg:px-20">
+        <div className="w-full max-w-6xl flex flex-col md:flex-row items-center gap-16 lg:gap-24">
             
-            <div className="flex flex-col justify-center">
-                <div className="flex items-center gap-1.5">
-                    <span className="text-white font-black text-2xl tracking-wider">SNNS</span>
-                    <span className="px-2 py-0.5 bg-gradient-to-r from-[#22c55e] to-[#4ade80] text-black text-[10px] font-black rounded-md uppercase tracking-widest shadow-[0_3px_10px_rgba(34,197,94,0.3)]">PRO</span>
-                </div>
-                <span className="text-gray-500 text-[9px] uppercase tracking-widest font-bold mt-0.5">شبكة العقدة السيادية ● المملكة العربية السعودية</span>
+            {/* Value Proposition Text */}
+            <div className="text-right flex-1 order-2 md:order-1" dir="rtl">
+                <motion.h1 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-4xl md:text-5xl lg:text-7xl font-black text-white leading-tight"
+                >
+                    ارتقِ بخصوصيتك إلى <br /> مستويات <span className="text-gold-sovereign">ملكية</span>
+                </motion.h1>
+                <motion.p 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-gray-400 text-sm md:text-base mt-8 leading-relaxed max-w-xl"
+                >
+                    مرحباً بك في عالم التواصل السيادي. <br />
+                    SNNS PRO توفر لك بيئة مشفرة بالكامل، مستضافة وطنياً، لا تقبل المساومة على أمان بياناتك.
+                </motion.p>
+                
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="mt-12 flex items-center gap-4 justify-end opacity-40"
+                >
+                    <div className="h-[1px] w-12 bg-gray-800"></div>
+                    <span className="text-[10px] font-mono tracking-[0.2em]">ENCRYPTED_SOVEREIGN_NODE_v4</span>
+                </motion.div>
+            </div>
+
+            {/* Login Card */}
+            <div className="w-full max-w-sm flex-1 order-1 md:order-2">
+                <AnimatePresence mode="wait">
+                  {!user && !emailSent && (
+                    <motion.div
+                      key="login"
+                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                      className="bg-[#050505] border border-gray-900 rounded-[32px] p-8 lg:p-10 shadow-[0_0_50px_rgba(34,197,94,0.08)] text-right font-cairo select-none relative overflow-hidden"
+                    >
+                      <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#22c55e]/10 rounded-full blur-3xl"></div>
+                      
+                      <div className="flex flex-col items-center mb-8 relative z-10">
+                          <div className="w-16 h-14 flex items-center justify-center bg-black border-2 border-[#22c55e] rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.3)] mb-4 transition-transform hover:scale-110">
+                              <span className="text-white font-black text-2xl font-mono tracking-tighter">SA</span>
+                          </div>
+                          <h2 className="text-white text-xl font-black mb-1">بوابة الدخول السيادية</h2>
+                          <p className="text-gray-500 text-xs text-center leading-relaxed">سجل دخولك لتفعيل الرادار وبدء البث المشفر</p>
+                      </div>
+
+                      <form onSubmit={handleEmailLogin} className="space-y-5 relative z-10">
+                          <div>
+                              <label className="block text-gray-400 text-xs font-bold mb-2.5 pr-1 uppercase tracking-widest">البريد الإلكتروني المشفر</label>
+                              <div className="relative">
+                                  <input 
+                                    type="email" 
+                                    id="loginEmail" 
+                                    required 
+                                    placeholder="name@snns.shop" 
+                                    value={loginEmail}
+                                    onChange={(e) => setLoginEmail(e.target.value)}
+                                    className="w-full bg-black border border-gray-900 rounded-2xl px-5 py-4 pl-12 text-white text-sm font-mono focus:border-[#22c55e] focus:shadow-[0_0_20px_rgba(34,197,94,0.15)] focus:outline-none transition-all duration-300 placeholder-gray-800 text-left"
+                                    dir="ltr"
+                                  />
+                                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-700 w-5 h-5" />
+                              </div>
+                          </div>
+
+                          <button 
+                            type="submit" 
+                            disabled={isLoggingIn}
+                            className="w-full bg-gradient-to-r from-[#22c55e] to-[#4ade80] text-black font-black text-sm py-4 rounded-2xl shadow-[0_5px_20px_rgba(34,197,94,0.25)] hover:shadow-[0_5px_30px_#22c55e] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                              {isLoggingIn ? (
+                                <>
+                                  <span>جاري التحقق الملكي...</span>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                </>
+                              ) : (
+                                <>
+                                  <span>طلب رمز الدخول الفوري ⚡</span>
+                                </>
+                              )}
+                          </button>
+                      </form>
+
+                      <div className="flex items-center my-7 gap-3 relative z-10 px-4">
+                          <div className="flex-1 h-[1px] bg-gray-900"></div>
+                          <span className="text-gray-700 text-[10px] font-black uppercase tracking-widest">أو</span>
+                          <div className="flex-1 h-[1px] bg-gray-900"></div>
+                      </div>
+
+                      <button 
+                        onClick={handleGoogleLogin} 
+                        className="w-full bg-black border border-gray-900 rounded-2xl py-4 px-6 flex items-center justify-center gap-4 text-gray-500 hover:text-white hover:border-gray-700 hover:bg-[#080808] transition-all duration-300 group relative z-10"
+                      >
+                          <svg className="w-5 h-5 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
+                              <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                              <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                              <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                              <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                          </svg>
+                          <span className="text-xs font-black tracking-tight">متابعة بواسطة حساب Google</span>
+                      </button>
+                    </motion.div>
+                  )}
+
+                  {emailSent && (
+                    <motion.div
+                      key="email-sent"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="w-full max-w-sm bg-[#050505] border border-[#1a1a1a] rounded-[32px] p-10 shadow-[0_10px_50px_rgba(34,197,94,0.05)] text-right font-cairo select-none"
+                    >
+                      <div className="flex flex-col items-center mb-6 text-center">
+                        <div className="w-[60px] h-[55px] flex items-center justify-center bg-black border-2 border-[#22c55e] rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.3)] mb-8">
+                          <span className="text-white font-mono font-black text-2xl tracking-tighter">SA</span>
+                        </div>
+                        
+                        <h1 className="text-white text-xl font-black mb-2.5">رابط التحقق السيادي</h1>
+                        <p className="text-gray-500 text-[13px] leading-[1.8] mb-8">
+                          لقد أرسلنا رابط الدخول إلى بريدك الإلكتروني <br />
+                          <b className="text-white font-mono">{loginEmail}</b> <br />
+                          يرجى مراجعة بريدك والضغط على الرابط لتفعيل وصولك.
+                        </p>
+
+                        <div className="w-full space-y-4">
+                          <div className="p-4 bg-[#22c55e]/5 border border-[#22c55e]/10 rounded-2xl flex items-center justify-center gap-3 text-[#22c55e]">
+                            <Bolt className="w-4 h-4 animate-pulse" />
+                            <span className="text-[10px] font-black font-mono tracking-widest">AWAITING SOVEREIGN AUTH</span>
+                          </div>
+
+                          <button 
+                            onClick={() => setEmailSent(false)}
+                            className="w-full py-4 text-gray-600 text-[10px] uppercase font-black tracking-[0.2em] hover:text-gray-400 transition-colors"
+                          >
+                            Back to Login
+                          </button>
+                        </div>
+
+                        <div className="mt-10 text-white/5 text-[9px] uppercase tracking-[2px] font-bold">
+                          شبكة العقدة السيادية • المملكة العربية السعودية
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
             </div>
         </div>
-        <div className="hidden md:flex text-[10px] uppercase tracking-[0.2em] text-gray-text space-x-12">
-          <span className="hover:text-gold cursor-pointer transition-colors duration-300">Security</span>
-          <span className="hover:text-gold cursor-pointer transition-colors duration-300">Architecture</span>
-          <span className="hover:text-gold cursor-pointer transition-colors duration-300">Support</span>
-        </div>
-      </nav>
-
-      <main className="flex-1 flex flex-col items-center justify-center z-10 px-6 py-12">
-        <AnimatePresence mode="wait">
-          {!user && !emailSent && (
-            <motion.div
-              key="login"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-[#050505] border border-gray-900 rounded-3xl p-8 shadow-[0_0_30px_rgba(34,197,94,0.05)] text-right font-cairo select-none"
-            >
-              <div className="flex flex-col items-center mb-6 text-center">
-                  <div className="w-16 h-14 flex items-center justify-center bg-black border-2 border-[#22c55e] rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.25)] mb-4">
-                      <span className="text-white font-black text-2xl font-mono tracking-tighter">SA</span>
-                  </div>
-                  <h2 className="text-white text-xl font-black">بوابة الدخول السيادية</h2>
-                  <p className="text-gray-500 text-xs mt-1">سجل دخولك لتفعيل الرادار وبدء البث المشفر</p>
-              </div>
-
-              <form onSubmit={handleEmailLogin} className="space-y-4">
-                  <div>
-                      <label className="block text-gray-400 text-xs font-bold mb-2 pr-1">البريد الإلكتروني المشفر</label>
-                      <div className="relative">
-                          <input 
-                            type="email" 
-                            id="loginEmail" 
-                            required 
-                            placeholder="su66666su@gmail.com" 
-                            value={loginEmail}
-                            onChange={(e) => setLoginEmail(e.target.value)}
-                            className="w-full bg-[#0a0a0a] border border-gray-900 rounded-xl px-4 py-3 pl-10 text-gray-250 text-sm font-mono focus:border-[#22c55e] focus:shadow-[0_0_15px_rgba(34,197,94,0.15)] focus:outline-none transition-all duration-300 placeholder-gray-700 text-left"
-                            dir="ltr"
-                          />
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 w-4 h-4" />
-                      </div>
-                  </div>
-
-                  <button 
-                    type="submit" 
-                    disabled={isLoggingIn}
-                    className="w-full bg-gradient-to-r from-[#22c55e] to-[#4ade80] text-black font-black text-sm py-3.5 rounded-xl shadow-[0_4px_20px_rgba(34,197,94,0.2)] hover:shadow-[0_4px_30px_#22c55e] hover:scale-[1.01] transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                      {isLoggingIn ? (
-                        <>
-                          <span>جاري تأمين الرابط...</span>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        </>
-                      ) : (
-                        <>
-                          <span>طلب رمز الدخول الفوري</span>
-                          <Bolt className="w-4 h-4" />
-                        </>
-                      )}
-                  </button>
-              </form>
-
-              <div className="flex items-center my-6 gap-3">
-                  <div className="flex-1 h-[1px] bg-gray-900"></div>
-                  <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider">أو الدخول السريع</span>
-                  <div className="flex-1 h-[1px] bg-gray-900"></div>
-              </div>
-
-              <button 
-                onClick={handleGoogleLogin} 
-                className="w-full bg-black border border-gray-900 rounded-xl py-3 px-4 flex items-center justify-center gap-3 text-gray-300 hover:text-white hover:border-gray-800 transition-all duration-300"
-              >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                      <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                      <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                  </svg>
-                  <span className="text-xs font-bold text-right">متابعة بواسطة حساب Google</span>
-              </button>
-            </motion.div>
-          )}
-
-          {emailSent && (
-            <motion.div
-              key="email-sent"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="w-full max-w-[450px] bg-[#050505] border border-[#1a1a1a] rounded-[24px] p-10 shadow-[0_10px_40px_rgba(34,197,94,0.03)] text-right font-cairo select-none"
-            >
-              <div className="flex flex-col items-center mb-6 text-center">
-                <div className="w-[60px] h-[55px] flex items-center justify-center bg-black border-2 border-[#22c55e] rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.25)] mb-8">
-                  <span className="text-white font-mono font-black text-2xl tracking-tighter">SA</span>
-                </div>
-                
-                <h1 className="text-white text-xl font-black mb-2.5">بوابة الدخول الفورية</h1>
-                <p className="text-[#666666] text-[13px] leading-[1.8] mb-8">
-                  مرحباً بك في شبكة العقدة السيادية.<br />
-                  افحص بريدك الإلكتروني <b>{loginEmail}</b> واضغط على زر التأكيد لتأمين حسابك وفتح قنوات البث المشفرة.
-                </p>
-
-                <div className="w-full space-y-4">
-                  <div className="p-4 bg-[#22c55e]/5 border border-[#22c55e]/10 rounded-xl flex items-center justify-center gap-3 text-[#22c55e]">
-                    <Bolt className="w-4 h-4 animate-pulse" />
-                    <span className="text-xs font-bold font-mono tracking-widest">AWAITING SOVEREIGN AUTHENTICATION</span>
-                  </div>
-
-                  <button 
-                    onClick={() => setEmailSent(false)}
-                    className="w-full py-4 text-[#444444] text-[10px] uppercase font-black tracking-[0.2em] hover:text-[#666666] transition-colors"
-                  >
-                    Back to Login
-                  </button>
-                </div>
-
-                <div className="mt-10 text-[#333333] text-[9px] uppercase tracking-[2px] font-bold">
-                  شبكة العقدة السيادية • المملكة العربية السعودية
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </main>
 
-      {/* Footer Details */}
-      <footer className="z-20 px-12 py-8 flex justify-between items-end border-t border-white/5 bg-transparent">
-        <div className="space-y-3">
-          <p className="text-[10px] text-gray-text uppercase tracking-widest font-black">Status</p>
-          <div className="flex items-center space-x-3">
-            <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] animate-pulse"></div>
-            <p className="text-[10px] font-mono text-off-white tracking-widest">SECURE_NODE_ALPHA_01 // ACTIVE</p>
-          </div>
-        </div>
-        
-        <div className="hidden sm:flex space-x-16">
-          <div className="text-right space-y-1">
-            <p className="text-[10px] text-gray-text uppercase tracking-widest font-black">Architecture</p>
-            <p className="text-[10px] font-mono tracking-tighter uppercase">Hybrid_Cloud_v4</p>
-          </div>
-          <div className="text-right space-y-1">
-            <p className="text-[10px] text-gray-text uppercase tracking-widest font-black">Protocol</p>
-            <p className="text-[10px] font-mono tracking-tighter uppercase">E2EE-MARQUE-ROYAL</p>
-          </div>
-        </div>
+      <footer className="z-20 px-12 py-8 bg-[#050505] border-t border-gray-900 text-center">
+        <p className="text-gray-800 text-[10px] tracking-[0.4em] uppercase font-black">
+            © 2024 شبكة العقدة السيادية • جميع الحقوق محفوظة
+        </p>
       </footer>
         </div>
       )}
