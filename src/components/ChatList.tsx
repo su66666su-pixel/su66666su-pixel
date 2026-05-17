@@ -43,6 +43,7 @@ interface ChatRoom {
   last_message?: string;
   last_message_time?: string;
   unread_count?: number;
+  memberIds?: string[];
 }
 
 interface ChatItemProps {
@@ -110,9 +111,56 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [isAdminView, setIsAdminView] = useState(false);
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [globalRoomId, setGlobalRoomId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const { showToast } = useToast();
 
+  const filteredRooms = rooms.filter(room => 
+    room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    room.last_message?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   useEffect(() => {
+    const ensureGlobalRoom = async () => {
+      try {
+        // Look for a global room
+        const { getDocs, query, collection, where, limit } = await import('firebase/firestore');
+        const q = query(collection(db, 'rooms'), where('isGlobal', '==', true), limit(1));
+        const snapshot = await getDocs(q);
+        
+        let roomId = '';
+        if (snapshot.empty) {
+          // Create global room if it doesn't exist
+          const { addDoc } = await import('firebase/firestore');
+          const docRef = await addDoc(collection(db, 'rooms'), {
+            name: 'المجلس العام - الردهة الملكية',
+            isGroup: true,
+            isGlobal: true,
+            memberIds: [user.uid],
+            lastMessage: 'أهلاً بكم في المجلس العام السيادي 👑',
+            lastMessageTime: serverTimestamp(),
+            createdBy: 'system',
+            avatarUrl: ''
+          });
+          roomId = docRef.id;
+        } else {
+          roomId = snapshot.docs[0].id;
+          const data = snapshot.docs[0].data();
+          // Check if user is already a member
+          if (!data.memberIds.includes(user.uid)) {
+            const { updateDoc, arrayUnion, doc } = await import('firebase/firestore');
+            await updateDoc(doc(db, 'rooms', roomId), {
+              memberIds: arrayUnion(user.uid)
+            });
+          }
+        }
+        setGlobalRoomId(roomId);
+      } catch (err) {
+        console.error("Global room error:", err);
+      }
+    };
+
+    ensureGlobalRoom();
     const fetchUserProfile = async (userId: string) => {
       try {
         const { data: profile, error } = await supabase
@@ -171,7 +219,8 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           avatar_url: data.avatarUrl,
           last_message: data.lastMessage,
           last_message_time: timeStr,
-          unread_count: data.unreadCount
+          unread_count: data.unreadCount,
+          memberIds: data.memberIds
         } as ChatRoom;
       });
       setRooms(roomData);
@@ -227,6 +276,46 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
       };
 
       setSelectedRoom(newRoom);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'rooms');
+    }
+  };
+
+  const handleStartChat = async (targetUser: any) => {
+    // Check if a 1-to-1 chat already exists
+    const existingRoom = rooms.find(r => !r.is_group && r.memberIds?.includes(targetUser.id));
+    
+    if (existingRoom) {
+      setSelectedRoom(existingRoom);
+      return;
+    }
+
+    try {
+      const roomData = {
+        name: targetUser.username,
+        isGroup: false,
+        memberIds: [user.uid, targetUser.id],
+        lastMessage: 'بدأت المحادثة السيادية الخاصة',
+        lastMessageTime: serverTimestamp(),
+        createdBy: user.uid,
+        avatarUrl: targetUser.avatar_url || ''
+      };
+
+      const docRef = await addDoc(collection(db, 'rooms'), roomData);
+      
+      const newRoom: ChatRoom = {
+        id: docRef.id,
+        name: roomData.name,
+        is_group: roomData.isGroup,
+        avatar_url: roomData.avatarUrl,
+        last_message: roomData.lastMessage,
+        last_message_time: 'الآن',
+        unread_count: 0,
+        memberIds: roomData.memberIds
+      };
+
+      setSelectedRoom(newRoom);
+      showToast(`تم فتح قناة اتصال خاصة مع ${targetUser.username}`, 'royal');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'rooms');
     }
@@ -347,6 +436,8 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
                 type="text" 
                 placeholder="ابحث في سجلات السنس..." 
                 dir="rtl"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full royal-input px-10 py-3 text-sm font-medium"
               />
             </div>
@@ -358,7 +449,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
                 <Loader2 className="w-8 h-8 text-gold animate-spin" />
               </div>
             ) : (
-              rooms.map((room, idx) => (
+              filteredRooms.map((room, idx) => (
                 <ChatItem 
                   key={`chat-room-${room.id || idx}-${idx}`}
                   room={room}
@@ -368,7 +459,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
               ))
             )}
             
-            {rooms.length === 0 && !loading && (
+            {filteredRooms.length === 0 && !loading && (
               <div className="flex flex-col items-center justify-center h-full text-gray-text opacity-50 space-y-4 p-8 text-center">
                 <ShieldAlert className="w-12 h-12 text-gold/30" />
                 <p className="uppercase tracking-[0.2em] text-[10px] font-bold">لا توجد محادثات مشفرة حالياً</p>
@@ -439,7 +530,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         </div>
 
         {/* Active Users Sidebar */}
-        <ActiveUsersSidebar currentUser={user} />
+        <ActiveUsersSidebar currentUser={user} onStartChat={handleStartChat} />
       </main>
       <AnimatePresence mode="wait">
         {incomingCall && (

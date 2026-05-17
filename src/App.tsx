@@ -33,13 +33,74 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-dark-bg">
-        <motion.div
-          animate={{ scale: [1, 1.2, 1], rotate: [0, 360] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <Crown className="w-12 h-12 text-gold" />
-        </motion.div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-dark-bg overflow-hidden relative">
+        {/* Background Decorative Glow */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              opacity: [0.1, 0.2, 0.1]
+            }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-[radial-gradient(circle_at_center,_var(--color-gold)_0%,_transparent_70%)] blur-[100px]"
+          />
+        </div>
+
+        <div className="relative z-10 flex flex-col items-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative"
+          >
+            {/* Outer Rotating Rings */}
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-[-40px] border border-gold/10 rounded-full"
+            />
+            <motion.div 
+              animate={{ rotate: -360 }}
+              transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-[-60px] border border-gold/5 rounded-full"
+            />
+
+            {/* Central Animated Crown */}
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1], 
+                rotate: [0, 5, -5, 0],
+                filter: ["drop-shadow(0 0 10px rgba(212,175,55,0.4))", "drop-shadow(0 0 30px rgba(212,175,55,0.6))", "drop-shadow(0 0 10px rgba(212,175,55,0.4))"]
+              }}
+              transition={{ 
+                duration: 4, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+              className="bg-black/40 p-10 rounded-full border border-gold/20 backdrop-blur-sm"
+            >
+              <Crown className="w-16 h-16 text-gold" />
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mt-12 text-center"
+          >
+            <h2 className="text-gold font-light tracking-[0.5em] text-[10px] uppercase mb-2">Initializing Sovereignty</h2>
+            <div className="flex items-center justify-center space-x-1">
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={`dot-${i}`}
+                  animate={{ opacity: [0.2, 1, 0.2] }}
+                  transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
+                  className="w-1 h-1 bg-gold rounded-full"
+                />
+              ))}
+            </div>
+          </motion.div>
+        </div>
       </div>
     );
   }

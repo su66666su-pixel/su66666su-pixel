@@ -12,7 +12,7 @@ interface ActiveUser {
   last_seen_at?: string;
 }
 
-export default function ActiveUsersSidebar({ currentUser }: { currentUser: any }) {
+export default function ActiveUsersSidebar({ currentUser, onStartChat }: { currentUser: any, onStartChat: (user: ActiveUser) => void }) {
   const [users, setUsers] = useState<ActiveUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -74,6 +74,7 @@ export default function ActiveUsersSidebar({ currentUser }: { currentUser: any }
           users.map((user, idx) => (
             <motion.div 
               key={`active-explorer-${user.id || idx}-${idx}`}
+              onClick={() => onStartChat(user)}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: idx * 0.05 }}
