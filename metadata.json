@@ -2,5 +2,5 @@
   "name": "SNNS.pro - Royal Social Login",
   "description": "A premium and royal authentication experience for SNNS.pro, featuring dark aesthetics, gold accents, and secure Google OAuth integration via Supabase.",
   "requestFramePermissions": ["camera", "microphone", "geolocation"],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

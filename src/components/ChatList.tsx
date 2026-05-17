@@ -439,7 +439,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         </div>
 
         {/* Active Users Sidebar */}
-        <ActiveUsersSidebar />
+        <ActiveUsersSidebar currentUser={user} />
       </main>
       <AnimatePresence mode="wait">
         {incomingCall && (
