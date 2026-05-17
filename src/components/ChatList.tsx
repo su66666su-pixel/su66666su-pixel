@@ -116,6 +116,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [viewMode, setViewMode] = useState<'chats' | 'users'>('chats');
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const { showToast } = useToast();
 
   const filteredRooms = rooms.filter(room => 
     room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -156,11 +157,11 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         let roomId = '';
         if (snapshot.empty) {
           const docRef = await addDoc(collection(db, 'rooms'), {
-            name: 'المجلس العام - الردهة الملكية',
+            name: 'المجلس الملكي - The Royal Hall',
             isGroup: true,
             isGlobal: true,
             memberIds: [user.uid],
-            lastMessage: 'أهلاً بكم في المجلس العام السيادي 👑',
+            lastMessage: 'أهلاً بكم في المجلس الملكي السيادي 👑 Welcome to The Royal Hall',
             lastMessageTime: serverTimestamp(),
             createdBy: 'system',
             avatarUrl: ''
@@ -244,15 +245,20 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           memberIds: data.memberIds
         } as ChatRoom;
       });
-      setRooms(roomData);
+      const sortedRooms = roomData.sort((a, b) => {
+        if ((a as any).isGlobal) return -1;
+        if ((b as any).isGlobal) return 1;
+        return 0;
+      });
+      setRooms(sortedRooms);
 
       // Auto-select global room if none selected
-      if (!selectedRoom && roomData.length > 0) {
-        const globalRoom = roomData.find(r => (r as any).isGlobal);
+      if (!selectedRoom && sortedRooms.length > 0) {
+        const globalRoom = sortedRooms.find(r => (r as any).isGlobal);
         if (globalRoom) {
           setSelectedRoom(globalRoom);
-        } else if (roomData.length === 1) {
-          setSelectedRoom(roomData[0]);
+        } else if (sortedRooms.length === 1) {
+          setSelectedRoom(sortedRooms[0]);
         }
       }
 

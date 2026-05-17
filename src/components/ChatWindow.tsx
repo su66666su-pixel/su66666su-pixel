@@ -12,7 +12,9 @@ import {
   Sparkles,
   Phone,
   Gift as GiftIcon,
-  X
+  X,
+  Check,
+  CheckCheck
 } from 'lucide-react';
 import { 
   db, 
@@ -31,7 +33,10 @@ import {
   addDoc, 
   serverTimestamp,
   Timestamp,
-  limit
+  limit,
+  doc,
+  updateDoc,
+  arrayUnion
 } from 'firebase/firestore';
 
 interface Message {
@@ -42,6 +47,7 @@ interface Message {
   fileUrl?: string;
   fileType: 'text' | 'image' | 'video' | 'file';
   timestamp: Timestamp | null;
+  readBy?: string[];
 }
 
 interface ChatWindowProps {
@@ -81,6 +87,32 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
       setMessages(msgs);
       setLoading(false);
       
+      // Efficient Mark as Read
+      const unreadMessages = snapshot.docs.filter(messageDoc => {
+        const data = messageDoc.data();
+        return data.senderId !== user.uid && (!data.readBy || !data.readBy.includes(user.uid));
+      });
+
+      if (unreadMessages.length > 0) {
+        Promise.all(unreadMessages.map(async (messageDoc) => {
+          try {
+            const messageRef = doc(db, 'rooms', room.id, 'messages', messageDoc.id);
+            await updateDoc(messageRef, {
+              readBy: arrayUnion(user.uid)
+            });
+            
+            // Sync with Supabase via Real-time Broadcast (Requested Sovereignty Protocol)
+            channel.send({
+              type: 'broadcast',
+              event: 'read_receipt',
+              payload: { messageId: messageDoc.id, userId: user.uid }
+            });
+          } catch (err) {
+            console.debug("Read receipt sync failed:", err);
+          }
+        }));
+      }
+
       setTimeout(() => {
         scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
@@ -90,36 +122,49 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
     });
 
     // 2. Real-time broadcast from Supabase (Requested Sovereignty Protocol)
-    const channel = supabase.channel('custom-all-channel')
+    const channel = supabase.channel(`room-${room.id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${room.id}` },
         (payload) => {
-          console.log('وصلت رسالة ملكية جديدة:', payload.new);
+          console.log('وصلت رسالة ملكية جديدة (Supabase):', payload.new);
           const msg = payload.new as any;
           
-          // Only append if it belongs to this room and isn't already in the list
-          if (msg.room_id === room.id) {
-            setMessages(prev => {
-              if (prev.find(m => m.id === msg.id)) return prev;
-              const formattedMsg: Message = {
-                id: msg.id,
-                senderId: msg.sender_id,
-                senderName: msg.sender_name,
-                content: msg.content,
-                fileUrl: msg.file_url,
-                fileType: msg.file_type || 'text',
-                timestamp: msg.created_at ? { toDate: () => new Date(msg.created_at) } as any : null
-              };
-              return [...prev, formattedMsg];
-            });
-
-            setTimeout(() => {
-              scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-            }, 100);
-          }
+          setMessages(prev => {
+            if (prev.find(m => m.id === msg.id)) return prev;
+            const formattedMsg: Message = {
+              id: msg.id,
+              senderId: msg.sender_id,
+              senderName: msg.sender_name,
+              content: msg.content,
+              fileUrl: msg.file_url,
+              fileType: msg.file_type || 'text',
+              readBy: msg.read_by || [],
+              timestamp: msg.created_at ? { toDate: () => new Date(msg.created_at) } as any : null
+            };
+            return [...prev, formattedMsg];
+          });
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `room_id=eq.${room.id}` },
+        (payload) => {
+          const updatedMsg = payload.new as any;
+          setMessages(prev => prev.map(m => 
+            m.id === updatedMsg.id ? { ...m, readBy: updatedMsg.read_by || m.readBy } : m
+          ));
+        }
+      )
+      .on('broadcast', { event: 'read_receipt' }, (payload) => {
+        const { messageId, userId } = payload.payload;
+        setMessages(prev => prev.map(m => 
+          m.id === messageId ? { 
+            ...m, 
+            readBy: m.readBy?.includes(userId) ? m.readBy : [...(m.readBy || []), userId] 
+          } : m
+        ));
+      })
       .subscribe();
 
     return () => {
@@ -149,18 +194,23 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
       setNewMessage('');
       
       // 1. Send to Firebase (Legacy)
-      await addDoc(collection(db, 'rooms', room.id, 'messages'), messageData);
+      const docRef = await addDoc(collection(db, 'rooms', room.id, 'messages'), {
+        ...messageData,
+        readBy: [user.uid]
+      });
 
       // 2. Send to Supabase (Real-time Sovereignty)
       await supabase
         .from('messages')
         .insert({
+          id: messageData.id || docRef.id, // Sync IDs between platforms
           room_id: room.id,
           sender_id: user.uid,
           sender_name: messageData.senderName,
           content: textToSend || null,
           file_url: fileData?.url || null,
           file_type: fileData?.type || 'text',
+          read_by: [user.uid], // Sync readBy
           created_at: new Date().toISOString()
         });
         
@@ -242,6 +292,34 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
       showToast(`تم إرسال ${gift.name} بنجاح! 👑`, 'royal');
     } else {
       showToast("عذراً، رصيدك غير كافٍ لهذا الكرم الملكي!", 'error');
+    }
+  };
+
+  const formatMessageTime = (timestamp: Timestamp | null) => {
+    if (!timestamp) return '...';
+    const date = timestamp.toDate();
+    const now = new Date();
+    
+    const isToday = date.toDateString() === now.toDateString();
+    
+    // Check for yesterday
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
+    
+    if (isToday) {
+      return date.toLocaleTimeString([], timeOptions);
+    } else if (isYesterday) {
+      return `Yesterday, ${date.toLocaleTimeString([], timeOptions)}`;
+    } else {
+      return date.toLocaleDateString([], { 
+        day: 'numeric', 
+        month: 'short', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
     }
   };
 
@@ -330,8 +408,17 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
                 <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Clock className="w-3 h-3 text-gray-text" />
                   <span className="text-[9px] text-gray-text font-mono">
-                    {msg.timestamp ? (msg.timestamp as Timestamp).toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}
+                    {formatMessageTime(msg.timestamp)}
                   </span>
+                  {isOwn && (
+                    <span className="ml-1">
+                      {msg.readBy && msg.readBy.length > 1 ? (
+                        <CheckCheck className="w-3 h-3 text-royal-black" />
+                      ) : (
+                        <Check className="w-3 h-3 text-royal-black opacity-50" />
+                      )}
+                    </span>
+                  )}
                 </div>
               </div>
             </motion.div>

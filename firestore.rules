@@ -106,6 +106,9 @@ service cloud.firestore {
 
         allow read: if isVerified() && canAccessRoom(roomId);
         allow create: if isVerified() && canAccessRoom(roomId) && isValidMessage(incoming());
+        allow update: if isVerified() && canAccessRoom(roomId) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['readBy']) &&
+                       incoming().readBy.hasAll(existing().get('readBy', []).concat([userId()]));
         allow delete: if isVerified() && (
           existing().senderId == userId() || 
           (get(/databases/$(database)/documents/rooms/$(roomId)/members/$(userId())).data.role in ['Owner', 'Admin'])

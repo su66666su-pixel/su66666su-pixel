@@ -275,15 +275,24 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
               .eq('id', user.uid);
 
             // 2. Search for nearby users using Supabase RPC
-            const { data: users, error } = await supabase
-              .rpc('get_nearby_users', { 
-                current_lat: lat, 
-                current_lng: lng,
-                distance_radius: 50.0 // Search within 50km
-              });
+            let users: any[] | null = null;
+            let rpcError: any = null;
+            
+            try {
+              const res = await supabase
+                .rpc('get_nearby_users', { 
+                  current_lat: lat, 
+                  current_lng: lng,
+                  distance_radius: 50.0 // Search within 50km
+                });
+              users = res.data;
+              rpcError = res.error;
+            } catch (e) {
+              rpcError = e;
+            }
 
-            if (error) {
-              console.warn("RPC failed, falling back to client-side filtering:", error);
+            if (rpcError) {
+              console.log("RPC get_nearby_users not found or failed, using client-side fallback...");
               // Fallback: fetch all geovisible users and filter locally
               const { data: allUsers, error: fetchError } = await supabase
                 .from('user_profiles')
@@ -339,7 +348,10 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
             }
           } catch (err: any) {
             console.error("Nearby search failed:", err);
-            showToast("فشل البحث عن ملوك قريبين: " + err.message, 'error');
+            // Only show toast if it's not a technical schema missing error
+            if (!err.message?.includes('GET_NEARBY_USERS')) {
+              showToast("فشل البحث عن ملوك قريبين: " + err.message, 'error');
+            }
           } finally {
             setIsSearchingNearby(false);
           }
@@ -429,9 +441,17 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
               <div className="space-y-10 relative" dir="rtl">
                 {/* Username Section */}
                 <section className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <User className="w-4 h-4 text-neon-gold" />
-                    <h3 className="text-xs font-black uppercase tracking-widest text-gray-200">الاسم الملكي</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-neon-gold" />
+                      <h3 className="text-xs font-black uppercase tracking-widest text-gray-200">الاسم الملكي</h3>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-neon-gold/10 border border-neon-gold/20 rounded-full">
+                       <Shield className="w-3 h-3 text-neon-gold" />
+                       <span className="text-[10px] font-black text-neon-gold uppercase tracking-widest">
+                         {userProfile?.role || 'user'}
+                       </span>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex gap-3">
