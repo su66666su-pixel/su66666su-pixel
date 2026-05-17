@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Lock, Loader2, Sparkles } from 'lucide-react';
+import { Lock, Loader2, Sparkles, UserPlus, ShieldAlert } from 'lucide-react';
 import { supabase } from '../supabase';
+import { handleUserAction } from '../services/userActions';
+import { useToast } from './Toast';
 
 interface ActiveUser {
   id: string;
@@ -15,18 +17,27 @@ interface ActiveUser {
 export default function ActiveUsersSidebar({ currentUser, onStartChat }: { currentUser: any, onStartChat: (user: ActiveUser) => void }) {
   const [users, setUsers] = useState<ActiveUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { showToast } = useToast();
+
+  const onUserAction = async (e: React.MouseEvent, action: 'follow' | 'block', targetId: string) => {
+    e.stopPropagation(); // Prevent opening chat
+    await handleUserAction(action, targetId, showToast);
+  };
 
   useEffect(() => {
     async function loadRoyalExplorers() {
-      if (!currentUser) return;
-      
       setIsLoading(true);
       try {
-        // جلب كل المستخدمين ما عدا حسابي أنا لكي أراهم في القائمة
-        const { data, error } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .neq('id', currentUser.uid); // استثناء نفسي فقط وإظهار البقية
+        const { data: { user } } = await supabase.auth.getUser();
+        const myId = user?.id || currentUser?.uid;
+
+        let query = supabase.from('user_profiles').select('*').eq('is_visible', true);
+        
+        if (myId) {
+          query = query.neq('id', myId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.error("خطأ في جلب المستخدمين الملكيين:", error);
@@ -113,6 +124,24 @@ export default function ActiveUsersSidebar({ currentUser, onStartChat }: { curre
                 <span className="text-[10px] text-gray-500 font-mono tracking-tighter uppercase">
                   {user.is_premium ? 'رتبة ملكية' : 'مستكشف نشط'}
                 </span>
+              </div>
+
+              {/* Follow/Block Actions */}
+              <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={(e) => onUserAction(e, 'follow', user.id)}
+                  className="p-1.5 bg-[#FFD700]/10 border border-[#FFD700]/20 text-[#FFD700] hover:bg-[#FFD700] hover:text-black transition-all rounded-md"
+                  title="متابعة ملكية"
+                >
+                  <UserPlus className="w-3 h-3" />
+                </button>
+                <button 
+                  onClick={(e) => onUserAction(e, 'block', user.id)}
+                  className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all rounded-md"
+                  title="حظر سيادي"
+                >
+                  <ShieldAlert className="w-3 h-3" />
+                </button>
               </div>
 
               {/* Decorative accent for premium */}

@@ -408,80 +408,74 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   return (
     <div className="flex h-screen w-full bg-dark-bg text-off-white overflow-hidden selection:bg-gold selection:text-black">
       {/* Sidebar Navigation */}
-      <aside className="w-20 md:w-24 royal-sidebar border-l flex flex-col items-center py-10 gap-10 bg-royal-black z-20">
-        <motion.div 
-          whileHover={{ scale: 1.1, rotate: 5 }}
-          onClick={() => setIsSubscriptionOpen(true)}
-          className="relative cursor-pointer"
-        >
-          <div className="w-12 h-12 border-2 border-neon-gold flex items-center justify-center bg-dark-bg shadow-[0_0_15px_rgba(255,215,0,0.2)]">
-            <Crown className="w-6 h-6 crown-icon" />
-          </div>
-          <div className="absolute inset-[-8px] border border-neon-gold/20 rounded-full animate-pulse" />
-        </motion.div>
-
-        <nav className="flex flex-col gap-10 text-gray-text text-xl">
-          <button 
-            onClick={() => setViewMode('chats')}
-            className={`${viewMode === 'chats' ? 'text-gold scale-110' : 'hover:text-gold'} transition-all relative`}
-          >
-            <MessageSquare className="w-6 h-6" />
-            {viewMode === 'chats' && <div className="absolute -top-1 -right-1 w-2 h-2 bg-gold rounded-full" />}
-          </button>
-          <button className="hover:text-gold transition-all hover:scale-110">
-            <Phone className="w-6 h-6" />
-          </button>
-          <button 
-            onClick={() => setViewMode('users')}
-            className={`${viewMode === 'users' ? 'text-gold scale-110' : 'hover:text-gold'} transition-all relative`}
-          >
-            <Users className="w-6 h-6" />
-            {viewMode === 'users' && <div className="absolute -top-1 -right-1 w-2 h-2 bg-gold rounded-full" />}
-          </button>
-          
-          {userProfile?.role === 'admin' && (
-            <button 
-              id="admin-menu-item"
-              onClick={() => setIsAdminView(true)}
-              className="hover:text-gold transition-all hover:scale-110 relative"
+      <aside className="w-20 bg-[#030303] border-l border-gray-900 flex flex-col items-center justify-between py-6 select-none z-20 h-screen shrink-0">
+        
+        <div className="flex flex-col items-center gap-8">
+            {/* Branding / SA Logo */}
+            <motion.div 
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setIsSubscriptionOpen(true)}
+              className="relative w-14 h-14 flex items-center justify-center bg-black border-2 border-[#22c55e] rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.25)] hover:shadow-[0_0_30px_#22c55e] cursor-pointer group transition-all duration-300"
             >
-              <LayoutDashboard className="w-6 h-6" />
-              <div className="absolute top-0 right-0 w-2 h-2 bg-neon-gold rounded-full animate-pulse shadow-[0_0_10px_#FFD700]" />
-            </button>
-          )}
-          
-          <button 
-            onClick={() => setIsProfileOpen(true)}
-            className="hover:text-gold transition-all hover:scale-110"
-          >
-            <Settings className="w-6 h-6" />
-          </button>
-        </nav>
+                <span className="text-white font-black text-xl tracking-tighter font-mono group-hover:text-[#D4AF37] transition-colors duration-300">SA</span>
+                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#22c55e] rounded-full shadow-[0_0_10px_#22c55e] animate-ping"></div>
+                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#22c55e] rounded-full shadow-[0_0_8px_#22c55e]"></div>
+            </motion.div>
 
-        <div className="mt-auto flex flex-col items-center gap-8">
-           <div className="flex flex-col items-center gap-1">
-             <div className={`w-10 h-10 border p-0.5 rounded-none overflow-hidden group cursor-pointer relative ${userProfile?.is_premium ? 'border-[#FFD700] shadow-[0_0_15px_rgba(255,215,0,0.5)]' : 'border-gold/30'}`}>
-               {userProfile?.is_premium && (
-                 <div className="absolute inset-0 border-2 border-[#FFD700] animate-pulse pointer-events-none z-10" />
-               )}
-               <img 
-                 src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=D4AF37&color=111`} 
-                 alt="Profile" 
-                 className={`w-full h-full object-cover transition-all ${userProfile?.is_premium ? 'grayscale-0' : 'grayscale group-hover:grayscale-0'}`}
-               />
-             </div>
-             {userProfile?.subscription_tier && (
-               <span className="text-[8px] text-[#FFD700] font-black uppercase tracking-tighter">
-                 {userProfile.subscription_tier}
-               </span>
-             )}
-           </div>
-           <button 
-             onClick={onLogout}
-             className="text-gray-text hover:text-red-400 transition-colors"
-           >
-             <LogOut className="w-5 h-5" />
-           </button>
+            {/* Nav Items */}
+            <button 
+              onClick={() => setViewMode('chats')}
+              className={`relative p-3 rounded-xl transition-all duration-300 group ${viewMode === 'chats' ? 'text-[#D4AF37] bg-[#0f0f0f] shadow-[0_0_15px_rgba(212,175,55,0.05)] border border-gray-900/50' : 'text-gray-500 hover:text-[#D4AF37] hover:bg-[#0f0f0f] hover:shadow-[0_0_15px_rgba(212,175,55,0.1)]'}`}
+            >
+                <MessageSquare className={`w-6 h-6 transition-transform duration-300 group-hover:scale-110`} />
+                {viewMode === 'chats' && <span className="absolute top-2 right-2 w-2 h-2 bg-[#D4AF37] rounded-full shadow-[0_0_8px_#D4AF37]"></span>}
+            </button>
+
+            <button className="p-3 text-gray-500 rounded-xl transition-all duration-300 hover:text-[#D4AF37] hover:bg-[#0f0f0f] group">
+                <Phone className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
+            </button>
+
+            <button 
+              onClick={() => setViewMode('users')}
+              className={`relative p-3 rounded-xl transition-all duration-300 group ${viewMode === 'users' ? 'text-[#D4AF37] bg-[#0f0f0f] shadow-[0_0_15px_rgba(212,175,55,0.05)] border border-gray-900/50' : 'text-gray-500 hover:text-[#D4AF37] hover:bg-[#0f0f0f] hover:shadow-[0_0_15px_rgba(212,175,55,0.1)]'}`}
+            >
+                <Users className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
+                {viewMode === 'users' && <span className="absolute top-2 right-2 w-2 h-2 bg-[#D4AF37] rounded-full shadow-[0_0_8px_#D4AF37]"></span>}
+            </button>
+
+            {userProfile?.role === 'admin' && (
+              <button 
+                onClick={() => setIsAdminView(true)}
+                className="p-3 text-gray-500 rounded-xl transition-all duration-300 hover:text-gold hover:bg-[#0f0f0f] group relative"
+              >
+                  <LayoutDashboard className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
+                  <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-neon-gold rounded-full animate-pulse" />
+              </button>
+            )}
+
+            <button 
+              onClick={() => setIsProfileOpen(true)}
+              className={`p-3 text-gray-500 rounded-xl transition-all duration-300 hover:text-[#22c55e] hover:bg-[#0f0f0f] group ${isProfileOpen ? 'text-[#22c55e] bg-[#0f0f0f]' : ''}`}
+            >
+                <Settings className="w-6 h-6 transition-transform duration-300 group-hover:rotate-45" />
+            </button>
+        </div>
+
+        <div className="flex flex-col items-center gap-6">
+            <div className="w-12 h-12 p-0.5 border border-[#D4AF37]/40 rounded-xl overflow-hidden shadow-[0_0_15px_rgba(212,175,55,0.1)] transition-all duration-300 hover:scale-105 hover:border-[#D4AF37]">
+                <img 
+                  src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=D4AF37&color=111`} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover rounded-lg filter grayscale hover:grayscale-0 transition-all duration-300" 
+                />
+            </div>
+
+            <button 
+              onClick={onLogout}
+              className="p-3 text-gray-600 rounded-xl transition-all duration-300 hover:text-red-500 hover:bg-red-950/20 group"
+            >
+                <LogOut className="w-6 h-6 transition-transform duration-300 group-hover:translate-x-1" />
+            </button>
         </div>
       </aside>
 

@@ -14,7 +14,8 @@ import {
   Gift as GiftIcon,
   X,
   Check,
-  CheckCheck
+  CheckCheck,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   db, 
@@ -414,30 +415,20 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
               animate={{ opacity: 1, x: 0 }}
               className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[70%] group ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
+              <div className={`max-w-[85%] group ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
                 {!isOwn && (
-                  <div className="flex items-center gap-2 mb-1">
-                    {msg.senderAvatar ? (
-                      <img 
-                        src={msg.senderAvatar} 
-                        alt={msg.senderName} 
-                        className="w-5 h-5 rounded-full object-cover border border-gold/30"
-                      />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                        <UserIcon className="w-3 h-3 text-gold/50" />
-                      </div>
-                    )}
-                    <span className="text-[9px] text-gold uppercase tracking-widest px-1 font-bold">
+                  <div className="flex items-center gap-2 mb-1 px-1">
+                    <span className="text-[#22c55e] font-black text-xs tracking-wide drop-shadow-[0_0_5px_rgba(34,197,94,0.15)] cursor-pointer hover:underline">
                       {msg.senderName}
                     </span>
+                    <ShieldCheck className="w-3 h-3 text-gold" />
                   </div>
                 )}
                 <div className={`
-                    px-5 py-3 text-sm leading-relaxed overflow-hidden
+                    relative px-4 py-2.5 text-sm leading-relaxed overflow-hidden shadow-lg
                     ${isOwn 
-                      ? 'bg-neon-gold text-royal-black font-semibold rounded-none rounded-tl-2xl' 
-                      : 'bg-[#111] text-off-white border border-white/5 rounded-none rounded-tr-2xl'
+                      ? 'bg-neon-gold text-royal-black font-bold rounded-2xl rounded-tl-none' 
+                      : 'bg-[#0d0d0d] border border-gray-900 text-gray-100 font-medium rounded-2xl rounded-tr-none'
                     }
                   `}
                 >
@@ -465,22 +456,22 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
                       className="max-w-full rounded-lg mb-2 border border-white/10" 
                     />
                   )}
-                  {msg.content}
-                </div>
-                <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Clock className="w-3 h-3 text-gray-text" />
-                  <span className="text-[9px] text-gray-text font-mono">
-                    {formatMessageTime(msg.timestamp)}
-                  </span>
-                  {isOwn && (
-                    <span className="ml-1">
-                      {msg.readBy && msg.readBy.length > 1 ? (
-                        <CheckCheck className="w-3 h-3 text-royal-black" />
-                      ) : (
-                        <Check className="w-3 h-3 text-royal-black opacity-50" />
-                      )}
-                    </span>
-                  )}
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+
+                  <div className={`flex items-center gap-1.5 mt-2 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`text-[9px] font-mono tracking-tighter ${isOwn ? 'text-royal-black/60' : 'text-[#22c55e]/60'}`}>
+                      {formatMessageTime(msg.timestamp)}
+                    </div>
+                    {isOwn && (
+                      <span className="opacity-60">
+                        {msg.readBy && msg.readBy.length > 1 ? (
+                          <CheckCheck className="w-3 h-3" />
+                        ) : (
+                          <Check className="w-3 h-3" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>
