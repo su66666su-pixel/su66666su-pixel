@@ -182,35 +182,65 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
       }
     };
 
-    ensureGlobalRoom();
-    const fetchUserProfile = async (userId: string) => {
+    const syncUserProfiles = async () => {
       try {
-        const { data: profile, error } = await supabase
+        // 1. Supabase Profile Sync
+        const { data: profile, error: fetchError } = await supabase
           .from('user_profiles')
           .select('*')
-          .eq('id', userId)
+          .eq('id', user.uid)
           .single();
 
-        if (error) {
-          console.error("Profile fetch failed", error);
-          return;
-        }
+        if (fetchError && fetchError.code === 'PGRST116') {
+          const trialEndDate = new Date();
+          trialEndDate.setDate(trialEndDate.getDate() + 7);
 
-        if (profile) {
+          const { data: newProfile, error: createError } = await supabase
+            .from('user_profiles')
+            .insert({ 
+              id: user.uid, 
+              username: user.displayName || user.email?.split('@')[0],
+              show_email: false,
+              is_premium: false,
+              trial_ends_at: trialEndDate.toISOString(),
+              is_geo_visible: false,
+              role: 'user'
+            })
+            .select()
+            .single();
+            
+          if (!createError && newProfile) setUserProfile(newProfile);
+        } else if (profile) {
           setUserProfile(profile);
           const now = new Date();
           const trialEnd = new Date(profile.trial_ends_at);
-
           if (now > trialEnd && !profile.is_premium) {
             setIsSubscriptionOpen(true);
           }
         }
+
+        // 2. Firestore Profile Sync
+        const { getDoc, setDoc, doc, serverTimestamp } = await import('firebase/firestore');
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (!userDoc.exists()) {
+          await setDoc(userDocRef, {
+            userId: user.uid,
+            email: user.email,
+            displayName: user.displayName || user.email?.split('@')[0],
+            photoURL: user.photoURL || '',
+            tier: 'Citizen',
+            createdAt: serverTimestamp()
+          });
+        }
       } catch (err) {
-        console.error("Error in fetchUserProfile", err);
+        console.error("Profile sync error:", err);
       }
     };
 
-    fetchUserProfile(user.uid);
+    ensureGlobalRoom();
+    syncUserProfiles();
 
     // Expose simulation function to window for the simulate button in ChatWindow
     (window as any).simulateIncomingCall = () => {
