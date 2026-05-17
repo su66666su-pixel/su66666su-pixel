@@ -8,7 +8,6 @@ service cloud.firestore {
 
     // 3. Phase 3: Primitive Definition
     function isSignedIn() { return request.auth != null; }
-    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function userId() { return request.auth.uid; }
@@ -16,8 +15,10 @@ service cloud.firestore {
 
     // Helper: Check if user is a member or if it's a global room
     function canAccessRoom(roomId) {
-      let room = get(/databases/$(database)/documents/rooms/$(roomId)).data;
-      return room.memberIds.hasAny([userId()]) || room.get('isGlobal', false) == true;
+      return exists(/databases/$(database)/documents/rooms/$(roomId)) && (
+        get(/databases/$(database)/documents/rooms/$(roomId)).data.memberIds.hasAny([userId()]) || 
+        get(/databases/$(database)/documents/rooms/$(roomId)).data.get('isGlobal', false) == true
+      );
     }
 
     // --- USERS COLLECTION ---
@@ -32,10 +33,10 @@ service cloud.firestore {
       }
 
       // Users can only read and manage their own profile
-      allow get: if isVerified() && userId() == uid;
-      allow list: if false; // No blanket listing of users
-      allow create: if isVerified() && userId() == uid && isValidUser(incoming());
-      allow update: if isVerified() && userId() == uid && 
+      allow get: if isSignedIn() && userId() == uid;
+      allow list: if false; 
+      allow create: if isSignedIn() && userId() == uid && isValidUser(incoming());
+      allow update: if isSignedIn() && userId() == uid && 
                       isValidUser(incoming()) && 
                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'tier']);
     }
@@ -48,9 +49,9 @@ service cloud.firestore {
                data.updatedAt == request.time;
       }
 
-      allow get: if isVerified() && userId() == uid;
-      allow create: if isVerified() && userId() == uid && isValidWallet(incoming());
-      allow update: if isVerified() && userId() == uid && 
+      allow get: if isSignedIn() && userId() == uid;
+      allow create: if isSignedIn() && userId() == uid && isValidWallet(incoming());
+      allow update: if isSignedIn() && userId() == uid && 
                       isValidWallet(incoming()) &&
                       incoming().diff(existing()).affectedKeys().hasOnly(['balance', 'updatedAt']);
     }
@@ -64,32 +65,28 @@ service cloud.firestore {
                (!('isGlobal' in data) || data.isGlobal is bool);
       }
 
-      // A room is readable if the user is a member OR if it is a global room
-      allow get: if isVerified() && (existing().memberIds.hasAny([userId()]) || existing().get('isGlobal', false) == true);
-      allow list: if isVerified() && (resource.data.memberIds.hasAny([userId()]) || resource.data.get('isGlobal', false) == true);
+      allow get: if isSignedIn() && (existing().memberIds.hasAny([userId()]) || existing().get('isGlobal', false) == true);
+      allow list: if isSignedIn() && (resource.data.memberIds.hasAny([userId()]) || resource.data.get('isGlobal', false) == true);
 
-      // Creation: must also create membership in the same batch (handled by logic)
-      allow create: if isVerified() && isValidRoom(incoming());
+      allow create: if isSignedIn() && isValidRoom(incoming());
       
-      allow update: if isVerified() && (
-        // Regular update for members
-        (existing().memberIds.hasAny([userId()]) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatarUrl', 'lastMessage', 'lastMessageTime'])) ||
-        // Self-join for global rooms
+      allow update: if isSignedIn() && (
+        (existing().memberIds.hasAny([userId()]) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatarUrl', 'lastMessage', 'lastMessageTime', 'unreadCount'])) ||
         (existing().get('isGlobal', false) == true && incoming().diff(existing()).affectedKeys().hasOnly(['memberIds']) && incoming().memberIds.hasAll(existing().memberIds.concat([userId()])))
       );
 
       // --- MEMBERS SUBCOLLECTION ---
       match /members/{memberId} {
-        allow read: if isVerified() && canAccessRoom(roomId);
+        allow read: if isSignedIn() && canAccessRoom(roomId);
         
-        allow create: if isVerified() && (
-          (memberId == userId() && incoming().role == 'Owner') ||
-          (get(/databases/$(database)/documents/rooms/$(roomId)/members/$(userId())).data.role in ['Owner', 'Admin'])
+        allow create: if isSignedIn() && (
+          (memberId == userId()) ||
+          (exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(userId())) && get(/databases/$(database)/documents/rooms/$(roomId)/members/$(userId())).data.role in ['Owner', 'Admin'])
         );
 
-        allow delete: if isVerified() && (
+        allow delete: if isSignedIn() && (
           memberId == userId() || 
-          (get(/databases/$(database)/documents/rooms/$(roomId)/members/$(userId())).data.role in ['Owner', 'Admin'])
+          (exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(userId())) && get(/databases/$(database)/documents/rooms/$(roomId)/members/$(userId())).data.role in ['Owner', 'Admin'])
         );
       }
 
@@ -104,14 +101,15 @@ service cloud.firestore {
                  data.timestamp == request.time;
         }
 
-        allow read: if isVerified() && canAccessRoom(roomId);
-        allow create: if isVerified() && canAccessRoom(roomId) && isValidMessage(incoming());
-        allow update: if isVerified() && canAccessRoom(roomId) &&
+        allow read: if isSignedIn() && canAccessRoom(roomId);
+        allow create: if isSignedIn() && canAccessRoom(roomId) && isValidMessage(incoming());
+        allow update: if isSignedIn() && canAccessRoom(roomId) &&
                        incoming().diff(existing()).affectedKeys().hasOnly(['readBy']) &&
                        incoming().readBy.hasAll(existing().get('readBy', []).concat([userId()]));
-        allow delete: if isVerified() && (
+        allow delete: if isSignedIn() && canAccessRoom(roomId) && (
           existing().senderId == userId() || 
-          (get(/databases/$(database)/documents/rooms/$(roomId)/members/$(userId())).data.role in ['Owner', 'Admin'])
+          existing().get('burnAfter', null) != null ||
+          (exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(userId())) && get(/databases/$(database)/documents/rooms/$(roomId)/members/$(userId())).data.role in ['Owner', 'Admin'])
         );
       }
     }

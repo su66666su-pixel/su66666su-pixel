@@ -11,6 +11,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function App() {
       } else {
         console.log("🚀 تم قذف الرابط الأمني إلى البريد بنجاح!");
         showToast("👑 تم إرسال رابط الدخول المشفر لبريدك! افحص الوارد الآن.", 'success');
-        setLoginEmail('');
+        setEmailSent(true);
       }
     } catch (err: any) {
       console.error("Login logic failed", err);
@@ -196,7 +197,7 @@ export default function App() {
 
       <main className="flex-1 flex flex-col items-center justify-center z-10 px-6 py-12">
         <AnimatePresence mode="wait">
-          {!user && (
+          {!user && !emailSent && (
             <motion.div
               key="login"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -267,6 +268,46 @@ export default function App() {
                   </svg>
                   <span className="text-xs font-bold text-right">متابعة بواسطة حساب Google</span>
               </button>
+            </motion.div>
+          )}
+
+          {emailSent && (
+            <motion.div
+              key="email-sent"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="w-full max-w-[450px] bg-[#050505] border border-[#1a1a1a] rounded-[24px] p-10 shadow-[0_10px_40px_rgba(34,197,94,0.03)] text-right font-cairo select-none"
+            >
+              <div className="flex flex-col items-center mb-6 text-center">
+                <div className="w-[60px] h-[55px] flex items-center justify-center bg-black border-2 border-[#22c55e] rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.25)] mb-8">
+                  <span className="text-white font-mono font-black text-2xl tracking-tighter">SA</span>
+                </div>
+                
+                <h1 className="text-white text-xl font-black mb-2.5">بوابة الدخول الفورية</h1>
+                <p className="text-[#666666] text-[13px] leading-[1.8] mb-8">
+                  مرحباً بك في شبكة العقدة السيادية.<br />
+                  افحص بريدك الإلكتروني <b>{loginEmail}</b> واضغط على زر التأكيد لتأمين حسابك وفتح قنوات البث المشفرة.
+                </p>
+
+                <div className="w-full space-y-4">
+                  <div className="p-4 bg-[#22c55e]/5 border border-[#22c55e]/10 rounded-xl flex items-center justify-center gap-3 text-[#22c55e]">
+                    <Bolt className="w-4 h-4 animate-pulse" />
+                    <span className="text-xs font-bold font-mono tracking-widest">AWAITING SOVEREIGN AUTHENTICATION</span>
+                  </div>
+
+                  <button 
+                    onClick={() => setEmailSent(false)}
+                    className="w-full py-4 text-[#444444] text-[10px] uppercase font-black tracking-[0.2em] hover:text-[#666666] transition-colors"
+                  >
+                    Back to Login
+                  </button>
+                </div>
+
+                <div className="mt-10 text-[#333333] text-[9px] uppercase tracking-[2px] font-bold">
+                  شبكة العقدة السيادية • المملكة العربية السعودية
+                </div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

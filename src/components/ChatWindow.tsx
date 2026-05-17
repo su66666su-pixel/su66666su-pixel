@@ -263,7 +263,11 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
       showToast("تم حذف الرسالة بنجاح 🗑️", 'info');
     } catch (err: any) {
       console.error("Delete failed:", err);
-      showToast("فشل الحذف: " + err.message, 'error');
+      try {
+        handleFirestoreError(err, OperationType.DELETE, `rooms/${room.id}/messages/${messageId}`);
+      } catch (jsonErr: any) {
+        showToast("فشل الحذف الملكي (صلاحيات): " + jsonErr.message, 'error');
+      }
     } finally {
       setIsDeleting(false);
     }

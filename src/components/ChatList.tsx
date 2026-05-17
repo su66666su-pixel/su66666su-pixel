@@ -16,7 +16,8 @@ import {
   MessageCircle,
   ShieldCheck,
   TriangleAlert,
-  ChevronLeft
+  ChevronLeft,
+  Clapperboard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useRef } from 'react';
@@ -131,7 +132,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const { showToast } = useToast();
 
-  const handleSwitchChannel = (channel: 'general' | 'verification' | 'support') => {
+  const handleSwitchChannel = (channel: 'general' | 'verification' | 'support' | 'videos') => {
     if (channel === 'general') {
       setViewMode('chats');
       if (globalRoomId) {
@@ -143,6 +144,9 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
       }
     } else if (channel === 'verification') {
       showToast("سيتم فتح نظام طلبات التوثيق السيادي قريباً! 👑", 'info');
+    } else if (channel === 'videos') {
+      showToast("رادار فيديوهات المستكشفين نشط حالياً! 🎥⚡", 'royal');
+      // In a real app, this would change viewMode to 'videos' and show a feed
     } else if (channel === 'support') {
       const supportRoomName = "الدعم الفني والشكاوي (AI Support)";
       const existingSupportRoom = rooms.find(r => r.name === supportRoomName);
@@ -154,18 +158,31 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         // Create a dedicated support room for this user
         (async () => {
           try {
-            const { addDoc, collection, serverTimestamp } = await import('firebase/firestore');
+            const { addDoc, collection, serverTimestamp, doc, setDoc } = await import('firebase/firestore');
             const roomData = {
               name: supportRoomName,
-              isGroup: false,
-              isSupport: true, // Tagging it for AI logic
-              memberIds: [user.uid, '00000000-0000-0000-0000-000000000000'], // User + AI Bot ID
+              is_group: false,
+              isSupport: true, 
+              memberIds: [user.uid, '00000000-0000-0000-0000-000000000000'],
               lastMessage: 'أهلاً بك في الدعم الفني السيادي. كيف يمكننا مساعدتك؟',
               lastMessageTime: serverTimestamp(),
               createdBy: 'system',
               avatarUrl: ''
             };
             const docRef = await addDoc(collection(db, 'rooms'), roomData);
+            
+            // Create member records
+            await setDoc(doc(db, 'rooms', docRef.id, 'members', user.uid), {
+              userId: user.uid,
+              role: 'Owner',
+              joinedAt: serverTimestamp()
+            });
+            await setDoc(doc(db, 'rooms', docRef.id, 'members', '00000000-0000-0000-0000-000000000000'), {
+              userId: '00000000-0000-0000-0000-000000000000',
+              role: 'Admin',
+              joinedAt: serverTimestamp()
+            });
+
             setSelectedRoom({ id: docRef.id, ...roomData, is_group: false, avatar_url: '' } as any);
             showToast("رادار الدعم الفني الذكي (AI) نشط وسيتواصل معك خلال دقائق! ⚡", 'info');
           } catch (err) {
@@ -447,6 +464,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
     const isGroup = confirm('هل تريد جعلها محادثة جماعية؟');
 
     try {
+      const { addDoc, collection, serverTimestamp, doc, setDoc } = await import('firebase/firestore');
       const roomData = {
         name,
         isGroup,
@@ -459,6 +477,13 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
 
       const docRef = await addDoc(collection(db, 'rooms'), roomData);
       
+      // Create member record for the creator
+      await setDoc(doc(db, 'rooms', docRef.id, 'members', user.uid), {
+        userId: user.uid,
+        role: 'Owner',
+        joinedAt: serverTimestamp()
+      });
+
       alert(`تم تفعيل غرفة ${name} بنجاح ملكي! ✨`);
 
       // Preparing the local object to transition immediately
@@ -488,6 +513,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
     }
 
     try {
+      const { addDoc, collection, serverTimestamp, doc, setDoc } = await import('firebase/firestore');
       const roomData = {
         name: targetUser.username,
         isGroup: false,
@@ -500,6 +526,18 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
 
       const docRef = await addDoc(collection(db, 'rooms'), roomData);
       
+      // Create member records for both
+      await setDoc(doc(db, 'rooms', docRef.id, 'members', user.uid), {
+        userId: user.uid,
+        role: 'Member',
+        joinedAt: serverTimestamp()
+      });
+      await setDoc(doc(db, 'rooms', docRef.id, 'members', targetUser.id), {
+        userId: targetUser.id,
+        role: 'Member',
+        joinedAt: serverTimestamp()
+      });
+
       const newRoom: ChatRoom = {
         id: docRef.id,
         name: roomData.name,
@@ -686,6 +724,17 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
                     <span className="font-bold text-xs">طلب توثيق حساب</span>
                 </div>
                 <ChevronLeft className="w-3 h-3 text-[10px]" />
+            </button>
+
+            <button 
+              onClick={() => handleSwitchChannel('videos')}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-[#070707] border border-gray-950 text-gray-400 hover:text-[#22c55e] hover:border-[#22c55e]/20 transition-all duration-300 group"
+            >
+                <div className="flex items-center gap-2.5">
+                    <Clapperboard className="w-4 h-4 text-gray-500 group-hover:text-[#22c55e] transition-colors" />
+                    <span className="font-bold text-xs">فيديوهات المستخدمين</span>
+                </div>
+                <span className="px-1.5 py-0.5 bg-black text-gray-650 text-[9px] font-mono rounded-md">LIVE</span>
             </button>
 
             <button 
