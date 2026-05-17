@@ -14,9 +14,10 @@ service cloud.firestore {
     function userId() { return request.auth.uid; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
 
-    // Helper: Check if user is a member of a room
-    function isMember(roomId) {
-      return get(/databases/$(database)/documents/rooms/$(roomId)).data.memberIds.hasAny([userId()]);
+    // Helper: Check if user is a member or if it's a global room
+    function canAccessRoom(roomId) {
+      let room = get(/databases/$(database)/documents/rooms/$(roomId)).data;
+      return room.memberIds.hasAny([userId()]) || room.get('isGlobal', false) == true;
     }
 
     // --- USERS COLLECTION ---
@@ -59,24 +60,27 @@ service cloud.firestore {
       function isValidRoom(data) {
         return data.name is string && data.name.size() <= 100 &&
                data.isGroup is bool &&
-               (!('avatarUrl' in data) || data.avatarUrl == null || (data.avatarUrl is string && data.avatarUrl.size() <= 2048));
+               (!('avatarUrl' in data) || data.avatarUrl == null || (data.avatarUrl is string && data.avatarUrl.size() <= 2048)) &&
+               (!('isGlobal' in data) || data.isGlobal is bool);
       }
 
-      // A room is readable if the user is a member
-      allow get: if isVerified() && existing().memberIds.hasAny([userId()]);
-      allow list: if isVerified() && resource.data.memberIds.hasAny([userId()]);
+      // A room is readable if the user is a member OR if it is a global room
+      allow get: if isVerified() && (existing().memberIds.hasAny([userId()]) || existing().get('isGlobal', false) == true);
+      allow list: if isVerified() && (resource.data.memberIds.hasAny([userId()]) || resource.data.get('isGlobal', false) == true);
 
       // Creation: must also create membership in the same batch (handled by logic)
       allow create: if isVerified() && isValidRoom(incoming());
       
-      allow update: if isVerified() && existing().memberIds.hasAny([userId()]) && (
-        // Only allow updating metadata
-        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatarUrl', 'lastMessage', 'lastMessageTime'])
+      allow update: if isVerified() && (
+        // Regular update for members
+        (existing().memberIds.hasAny([userId()]) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatarUrl', 'lastMessage', 'lastMessageTime'])) ||
+        // Self-join for global rooms
+        (existing().get('isGlobal', false) == true && incoming().diff(existing()).affectedKeys().hasOnly(['memberIds']) && incoming().memberIds.hasAll(existing().memberIds.concat([userId()])))
       );
 
       // --- MEMBERS SUBCOLLECTION ---
       match /members/{memberId} {
-        allow read: if isVerified() && isMember(roomId);
+        allow read: if isVerified() && canAccessRoom(roomId);
         
         allow create: if isVerified() && (
           (memberId == userId() && incoming().role == 'Owner') ||
@@ -100,8 +104,8 @@ service cloud.firestore {
                  data.timestamp == request.time;
         }
 
-        allow read: if isVerified() && isMember(roomId);
-        allow create: if isVerified() && isMember(roomId) && isValidMessage(incoming());
+        allow read: if isVerified() && canAccessRoom(roomId);
+        allow create: if isVerified() && canAccessRoom(roomId) && isValidMessage(incoming());
         allow delete: if isVerified() && (
           existing().senderId == userId() || 
           (get(/databases/$(database)/documents/rooms/$(roomId)/members/$(userId())).data.role in ['Owner', 'Admin'])

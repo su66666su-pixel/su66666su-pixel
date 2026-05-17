@@ -113,25 +113,48 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [userProfile, setUserProfile] = useState<any>(null);
   const [globalRoomId, setGlobalRoomId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const { showToast } = useToast();
+  const [viewMode, setViewMode] = useState<'chats' | 'users'>('chats');
+  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
   const filteredRooms = rooms.filter(room => 
     room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     room.last_message?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredUsers = availableUsers.filter(u => 
+    u.username.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  useEffect(() => {
+    if (viewMode === 'users') {
+      const fetchUsers = async () => {
+        setIsLoadingUsers(true);
+        try {
+          const { data, error } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .neq('id', user.uid);
+          if (data) setAvailableUsers(data);
+        } catch (err) {
+          console.error("Error fetching users:", err);
+        } finally {
+          setIsLoadingUsers(false);
+        }
+      };
+      fetchUsers();
+    }
+  }, [viewMode, user.uid]);
+
   useEffect(() => {
     const ensureGlobalRoom = async () => {
       try {
-        // Look for a global room
-        const { getDocs, query, collection, where, limit } = await import('firebase/firestore');
+        const { getDocs, query, collection, where, limit, updateDoc, arrayUnion, doc, addDoc } = await import('firebase/firestore');
         const q = query(collection(db, 'rooms'), where('isGlobal', '==', true), limit(1));
         const snapshot = await getDocs(q);
         
         let roomId = '';
         if (snapshot.empty) {
-          // Create global room if it doesn't exist
-          const { addDoc } = await import('firebase/firestore');
           const docRef = await addDoc(collection(db, 'rooms'), {
             name: 'المجلس العام - الردهة الملكية',
             isGroup: true,
@@ -146,9 +169,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         } else {
           roomId = snapshot.docs[0].id;
           const data = snapshot.docs[0].data();
-          // Check if user is already a member
-          if (!data.memberIds.includes(user.uid)) {
-            const { updateDoc, arrayUnion, doc } = await import('firebase/firestore');
+          if (!data.memberIds?.includes(user.uid)) {
             await updateDoc(doc(db, 'rooms', roomId), {
               memberIds: arrayUnion(user.uid)
             });
@@ -224,6 +245,17 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         } as ChatRoom;
       });
       setRooms(roomData);
+
+      // Auto-select global room if none selected
+      if (!selectedRoom && roomData.length > 0) {
+        const globalRoom = roomData.find(r => (r as any).isGlobal);
+        if (globalRoom) {
+          setSelectedRoom(globalRoom);
+        } else if (roomData.length === 1) {
+          setSelectedRoom(roomData[0]);
+        }
+      }
+
       setLoading(false);
     }, (error) => {
       try {
@@ -351,15 +383,22 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         </motion.div>
 
         <nav className="flex flex-col gap-10 text-gray-text text-xl">
-          <button className="text-gold transition-all hover:scale-110 relative">
+          <button 
+            onClick={() => setViewMode('chats')}
+            className={`${viewMode === 'chats' ? 'text-gold scale-110' : 'hover:text-gold'} transition-all relative`}
+          >
             <MessageSquare className="w-6 h-6" />
-            <div className="absolute -top-1 -right-1 w-2 h-2 bg-gold rounded-full" />
+            {viewMode === 'chats' && <div className="absolute -top-1 -right-1 w-2 h-2 bg-gold rounded-full" />}
           </button>
           <button className="hover:text-gold transition-all hover:scale-110">
             <Phone className="w-6 h-6" />
           </button>
-          <button className="hover:text-gold transition-all hover:scale-110">
+          <button 
+            onClick={() => setViewMode('users')}
+            className={`${viewMode === 'users' ? 'text-gold scale-110' : 'hover:text-gold'} transition-all relative`}
+          >
             <Users className="w-6 h-6" />
+            {viewMode === 'users' && <div className="absolute -top-1 -right-1 w-2 h-2 bg-gold rounded-full" />}
           </button>
           
           {userProfile?.role === 'admin' && (
@@ -418,23 +457,25 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           <header className="p-8 border-b border-white/5 backdrop-blur-sm bg-royal-black/50">
             <div className="flex justify-between items-center mb-10">
               <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">
-                Chats <span className="text-neon-gold block text-[10px] tracking-[0.4em] font-medium mt-1">Sovereign Messaging</span>
+                {viewMode === 'chats' ? 'Chats' : 'Explorers'} <span className="text-neon-gold block text-[10px] tracking-[0.4em] font-medium mt-1">{viewMode === 'chats' ? 'Sovereign Messaging' : 'Royal Network Discovery'}</span>
               </h1>
-              <motion.button 
-                onClick={handleCreateRoom}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                className="bg-neon-gold text-royal-black p-2 shrink-0 shadow-[0_0_10px_rgba(255,215,0,0.3)]"
-              >
-                <Plus className="w-5 h-5" />
-              </motion.button>
+              {viewMode === 'chats' && (
+                <motion.button 
+                  onClick={handleCreateRoom}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="bg-neon-gold text-royal-black p-2 shrink-0 shadow-[0_0_10px_rgba(255,215,0,0.3)]"
+                >
+                  <Plus className="w-5 h-5" />
+                </motion.button>
+              )}
             </div>
 
             <div className="relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neon-gold/30 group-focus-within:text-neon-gold transition-colors" />
               <input 
                 type="text" 
-                placeholder="ابحث في سجلات السنس..." 
+                placeholder={viewMode === 'chats' ? "ابحث في سجلات السنس..." : "ابحث عن ملوك ومستكشفين..."} 
                 dir="rtl"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -444,32 +485,75 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           </header>
 
           <section className="flex-1 overflow-y-auto scrollbar-hide py-4 relative">
-            {loading ? (
+            {loading || isLoadingUsers ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-gold animate-spin" />
               </div>
+            ) : viewMode === 'chats' ? (
+              <>
+                {filteredRooms.map((room, idx) => (
+                  <ChatItem 
+                    key={`chat-room-${room.id || idx}-${idx}`}
+                    room={room}
+                    isActive={selectedRoom?.id === room.id}
+                    onClick={() => setSelectedRoom(room)}
+                  />
+                ))}
+                
+                {filteredRooms.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-text opacity-50 space-y-4 p-8 text-center">
+                    <ShieldAlert className="w-12 h-12 text-gold/30" />
+                    <p className="uppercase tracking-[0.2em] text-[10px] font-bold">لا توجد محادثات مشفرة حالياً</p>
+                    <button 
+                      onClick={handleCreateRoom}
+                      className="text-gold border border-gold/30 px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-gold/10 transition-all font-black"
+                    >
+                      ابدأ محادثة سيادية
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
-              filteredRooms.map((room, idx) => (
-                <ChatItem 
-                  key={`chat-room-${room.id || idx}-${idx}`}
-                  room={room}
-                  isActive={selectedRoom?.id === room.id}
-                  onClick={() => setSelectedRoom(room)}
-                />
-              ))
-            )}
-            
-            {filteredRooms.length === 0 && !loading && (
-              <div className="flex flex-col items-center justify-center h-full text-gray-text opacity-50 space-y-4 p-8 text-center">
-                <ShieldAlert className="w-12 h-12 text-gold/30" />
-                <p className="uppercase tracking-[0.2em] text-[10px] font-bold">لا توجد محادثات مشفرة حالياً</p>
-                <button 
-                  onClick={handleCreateRoom}
-                  className="text-gold border border-gold/30 px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-gold/10 transition-all font-black"
-                >
-                  ابدأ محادثة سيادية
-                </button>
-              </div>
+              <>
+                {filteredUsers.map((u, idx) => (
+                  <motion.div 
+                    key={`user-list-${u.id}-${idx}`}
+                    onClick={() => {
+                        handleStartChat(u);
+                        setViewMode('chats');
+                    }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="flex items-center p-5 cursor-pointer border-b border-white/5 hover:bg-gold/5 transition-all group"
+                    dir="rtl"
+                  >
+                    <div className="w-12 h-12 border border-gold/30 p-0.5 overflow-hidden">
+                      <img 
+                        src={u.avatar_url || `https://ui-avatars.com/api/?name=${u.username}&background=111&color=D4AF37`} 
+                        alt={u.username}
+                        className="w-full h-full object-cover filter grayscale group-hover:grayscale-0 transition-all"
+                      />
+                    </div>
+                    <div className="mr-4 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-sm text-off-white">{u.username}</h3>
+                        {u.is_premium && <Crown className="w-3 h-3 text-gold" />}
+                      </div>
+                      <p className="text-[10px] text-gray-text font-mono uppercase tracking-widest opacity-60">
+                        {u.subscription_tier || 'مستكشف سيادي'}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+                
+                {filteredUsers.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-text opacity-50 p-8 text-center">
+                    <Users className="w-12 h-12 text-gold/30 mb-4" />
+                    <p className="uppercase tracking-[0.2em] text-[10px] font-bold">لم يتم العثور على مستكشفين</p>
+                  </div>
+                )}
+              </>
             )}
           </section>
         </div>

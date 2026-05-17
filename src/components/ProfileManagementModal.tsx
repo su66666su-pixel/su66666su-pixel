@@ -282,9 +282,48 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                 distance_radius: 50.0 // Search within 50km
               });
 
-            if (error) throw error;
+            if (error) {
+              console.warn("RPC failed, falling back to client-side filtering:", error);
+              // Fallback: fetch all geovisible users and filter locally
+              const { data: allUsers, error: fetchError } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('is_geo_visible', true)
+                .neq('id', user.uid);
+              
+              if (fetchError) throw fetchError;
+              
+              if (allUsers) {
+                // Calculate distance manually
+                const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+                  const R = 6371; // km
+                  const dLat = (lat2 - lat1) * Math.PI / 180;
+                  const dLon = (lon2 - lon1) * Math.PI / 180;
+                  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                          Math.sin(dLon/2) * Math.sin(dLon/2);
+                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                  return R * c;
+                };
 
-            if (users && users.length > 0) {
+                const nearby = allUsers
+                  .map(u => ({ ...u, distance_km: u.latitude && u.longitude ? calculateDistance(lat, lng, u.latitude, u.longitude) : 999 }))
+                  .filter(u => u.distance_km <= 50)
+                  .sort((a, b) => a.distance_km - b.distance_km);
+
+                setNearbyUsers(nearby.map((u: any) => ({
+                    id: u.id,
+                    name: u.username || 'مستكشف مجهول',
+                    distance: u.distance_km < 1 ? `${Math.round(u.distance_km * 1000)} متر` : `${u.distance_km.toFixed(1)} كم`,
+                    avatar: u.username || 'User',
+                    type: u.membership_tier === 'agent' ? 'agent' : 'normal'
+                })));
+
+                if (nearby.length === 0) {
+                    showToast("لم يتم العثور على ملوك قريبين في نطاق 50 كم. 🏰", 'info');
+                }
+              }
+            } else if (users && users.length > 0) {
               // Map RPC results to UI format
               setNearbyUsers(users.map((u: any) => ({
                 id: u.id,
