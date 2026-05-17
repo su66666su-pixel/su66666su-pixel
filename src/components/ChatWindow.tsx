@@ -43,6 +43,7 @@ interface Message {
   id: string;
   senderId: string;
   senderName: string;
+  senderAvatar?: string;
   content?: string;
   fileUrl?: string;
   fileType: 'text' | 'image' | 'video' | 'file';
@@ -69,6 +70,45 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const fetchHistory = async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          id,
+          content,
+          created_at,
+          sender_id,
+          sender_name,
+          file_url,
+          file_type,
+          read_by,
+          profiles:sender_id (
+            id,
+            username,
+            avatar_url
+          )
+        `)
+        .eq('room_id', room.id)
+        .order('created_at', { ascending: true });
+
+      if (!error && data) {
+        const historyMsgs: Message[] = data.map((msg: any) => ({
+          id: msg.id,
+          senderId: msg.sender_id,
+          senderName: msg.profiles?.username || msg.sender_name,
+          senderAvatar: msg.profiles?.avatar_url,
+          content: msg.content,
+          fileUrl: msg.file_url,
+          fileType: msg.file_type || 'text',
+          readBy: msg.read_by || [],
+          timestamp: { toDate: () => new Date(msg.created_at) } as any
+        }));
+        setMessages(historyMsgs);
+      }
+    };
+
+    fetchHistory();
+
     // 1. Initial history and live updates from Firebase (Current source of truth)
     const messagesQuery = query(
       collection(db, 'rooms', room.id, 'messages'),
@@ -376,9 +416,22 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
             >
               <div className={`max-w-[70%] group ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
                 {!isOwn && (
-                  <span className="text-[9px] text-gold uppercase tracking-widest mb-1 px-1 font-bold">
-                    {msg.senderName}
-                  </span>
+                  <div className="flex items-center gap-2 mb-1">
+                    {msg.senderAvatar ? (
+                      <img 
+                        src={msg.senderAvatar} 
+                        alt={msg.senderName} 
+                        className="w-5 h-5 rounded-full object-cover border border-gold/30"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                        <UserIcon className="w-3 h-3 text-gold/50" />
+                      </div>
+                    )}
+                    <span className="text-[9px] text-gold uppercase tracking-widest px-1 font-bold">
+                      {msg.senderName}
+                    </span>
+                  </div>
                 )}
                 <div className={`
                     px-5 py-3 text-sm leading-relaxed overflow-hidden

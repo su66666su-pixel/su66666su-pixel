@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Crown, ShieldCheck, Stars, Shield } from 'lucide-react';
+import { Crown, ShieldCheck, Stars, Shield, Trees, Sword } from 'lucide-react';
 import { auth, googleProvider } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
 import ChatList from './components/ChatList';
@@ -126,11 +126,31 @@ export default function App() {
 
       {/* Top Navigation */}
       <nav className="z-20 px-12 py-8 flex justify-between items-center bg-transparent">
-        <div className="flex items-center space-x-4 group cursor-default">
-          <div className="w-10 h-10 border border-gold flex items-center justify-center rotate-45 transition-transform duration-700 group-hover:rotate-[225deg]">
-            <span className="-rotate-45 text-sm font-bold text-gold">S</span>
-          </div>
-          <span className="text-xl font-bold tracking-[0.3em] uppercase text-gold">SNNS.pro</span>
+        <div className="flex items-center gap-4 select-none group cursor-default">
+            <div className="relative w-14 h-14 flex items-center justify-center bg-[#050505] border-2 border-gold rounded-2xl shadow-[0_0_30px_rgba(34,197,94,0.2)] transition-all duration-500 group-hover:scale-105">
+                <div className="flex flex-col items-center justify-center">
+                    <motion.div
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="text-[#22c55e] drop-shadow-[0_0_8px_#22c55e]"
+                    >
+                      <Trees className="w-6 h-6 mb-0.5" />
+                    </motion.div>
+                    <div className="flex gap-1 -mt-1 text-gold">
+                        <Sword className="w-3 h-3 rotate-45" />
+                        <Sword className="w-3 h-3 -rotate-45" />
+                    </div>
+                </div>
+                <div className="absolute top-1 left-1 w-1.5 h-1.5 bg-[#22c55e] rounded-full shadow-[0_0_8px_#22c55e]"></div>
+            </div>
+            
+            <div className="flex flex-col justify-center">
+                <div className="flex items-center gap-1.5">
+                    <span className="text-white font-black text-2xl tracking-wider">SNNS</span>
+                    <span className="px-2 py-0.5 bg-gradient-to-r from-[#22c55e] to-[#4ade80] text-black text-[10px] font-black rounded-md uppercase tracking-widest shadow-[0_3px_10px_rgba(34,197,94,0.3)]">PRO</span>
+                </div>
+                <span className="text-gray-500 text-[9px] uppercase tracking-widest font-bold mt-0.5">شبكة العقدة السيادية ● المملكة العربية السعودية</span>
+            </div>
         </div>
         <div className="hidden md:flex text-[10px] uppercase tracking-[0.2em] text-gray-text space-x-12">
           <span className="hover:text-gold cursor-pointer transition-colors duration-300">Security</span>

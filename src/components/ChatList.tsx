@@ -10,7 +10,9 @@ import {
   Loader2,
   ShieldAlert,
   Phone,
-  LayoutDashboard
+  LayoutDashboard,
+  Trees,
+  Sword
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect } from 'react';
@@ -490,11 +492,29 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           flex flex-col bg-royal-black royal-sidebar border-l transition-all duration-500 z-10
           ${selectedRoom ? 'hidden lg:flex w-96' : 'flex w-full'}
         `}>
-          <header className="p-8 border-b border-white/5 backdrop-blur-sm bg-royal-black/50">
-            <div className="flex justify-between items-center mb-10">
-              <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">
-                {viewMode === 'chats' ? 'Chats' : 'Explorers'} <span className="text-neon-gold block text-[10px] tracking-[0.4em] font-medium mt-1">{viewMode === 'chats' ? 'Sovereign Messaging' : 'Royal Network Discovery'}</span>
-              </h1>
+          <header className="p-6 border-b border-white/5 backdrop-blur-sm bg-royal-black/50">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3 select-none">
+                <div className="relative w-12 h-12 flex items-center justify-center bg-[#050505] border-2 border-gold rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.15)]">
+                    <div className="flex flex-col items-center justify-center scale-75">
+                        <Trees className="w-6 h-6 mb-0.5 animate-pulse text-[#22c55e] drop-shadow-[0_0_8px_#22c55e]" />
+                        <div className="flex gap-1 -mt-1 text-gold">
+                            <Sword className="w-3 h-3 rotate-45" />
+                            <Sword className="w-3 h-3 -rotate-45" />
+                        </div>
+                    </div>
+                    <div className="absolute top-1 left-1 w-1 h-1 bg-[#22c55e] rounded-full shadow-[0_0_5px_#22c55e]"></div>
+                </div>
+                
+                <div className="flex flex-col justify-center">
+                    <div className="flex items-center gap-1">
+                        <span className="text-white font-black text-lg tracking-wider">SNNS</span>
+                        <span className="px-1.5 py-0.5 bg-gradient-to-r from-[#22c55e] to-[#4ade80] text-black text-[8px] font-black rounded-sm uppercase tracking-widest shadow-[0_2px_5px_rgba(16,185,129,0.2)]">PRO</span>
+                    </div>
+                    <span className="text-gray-500 text-[7px] uppercase tracking-widest font-bold">شبكة العقدة السيادية ● المملكة العربية السعودية</span>
+                </div>
+              </div>
+
               {viewMode === 'chats' && (
                 <motion.button 
                   onClick={handleCreateRoom}

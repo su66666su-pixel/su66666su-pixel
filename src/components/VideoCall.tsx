@@ -35,6 +35,7 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [showGifts, setShowGifts] = useState(false);
   const [activeGift, setActiveGift] = useState<ActiveGift | null>(null);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
 
   const handleSendGift = (gift: any) => {
     setActiveGift({
@@ -55,16 +56,45 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
   useEffect(() => {
     async function startCamera() {
       try {
+        // Try to get both video and audio first
         const mediaStream = await navigator.mediaDevices.getUserMedia({ 
           video: true, 
           audio: true 
+        }).catch(async (err) => {
+          console.warn("Failed to get both video and audio, trying fallback...", err);
+          
+          if (err.name === 'NotFoundError' || err.name === 'NotReadableError' || err.name === 'OverconstrainedError') {
+            // Try video only
+            try {
+              return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            } catch (vErr) {
+              console.warn("Failed to get video only, trying audio only...", vErr);
+              // Try audio only
+              try {
+                return await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+              } catch (aErr) {
+                throw aErr; // Both failed
+              }
+            }
+          }
+          throw err;
         });
+
         setStream(mediaStream);
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = mediaStream;
         }
-      } catch (err) {
-        console.error("Error accessing camera:", err);
+
+        // Update UI states based on what we actually got
+        setIsVideoOn(mediaStream.getVideoTracks().length > 0);
+        setIsMicOn(mediaStream.getAudioTracks().length > 0);
+
+      } catch (err: any) {
+        console.error("Final error accessing media devices:", err);
+        let msg = "تعذر الوصول إلى الكاميرا أو الميكروفون";
+        if (err.name === 'NotAllowedError') msg = "تم رفض الوصول للكاميرا/الميكروفون";
+        if (err.name === 'NotFoundError') msg = "لم يتم العثور على كاميرا أو ميكروفون متاح";
+        setErrorStatus(msg);
       }
     }
 
@@ -121,17 +151,27 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 p-4 pt-32 pb-32 h-full bg-black">
         {/* Local Stream (Host) */}
         <div className="relative group overflow-hidden border-2 border-[#FFD700] bg-[#050505] shadow-[0_0_30px_rgba(255,215,0,0.1)]">
-          <video 
-            ref={localVideoRef} 
-            autoPlay 
-            muted 
-            playsInline 
-            className={`w-full h-full object-cover grayscale brightness-110 transition-all duration-700 ${!isVideoOn ? 'opacity-0' : 'opacity-100'}`}
-          />
-          {!isVideoOn && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#080808]">
-               <VideoOff className="w-16 h-16 text-gold/10" />
+          {errorStatus ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#080808] p-6 text-center">
+               <Shield className="w-12 h-12 text-neon-gold/20 mb-4" />
+               <p className="text-neon-gold font-bold text-xs uppercase tracking-widest">{errorStatus}</p>
+               <p className="text-gray-500 text-[10px] mt-2 font-black italic">يرجى التحقق من إعدادات المتصفح والجهاز</p>
             </div>
+          ) : (
+            <>
+              <video 
+                ref={localVideoRef} 
+                autoPlay 
+                muted 
+                playsInline 
+                className={`w-full h-full object-cover grayscale brightness-110 transition-all duration-700 ${!isVideoOn ? 'opacity-0' : 'opacity-100'}`}
+              />
+              {!isVideoOn && (
+                <div className="absolute inset-0 flex items-center justify-center bg-[#080808]">
+                   <VideoOff className="w-16 h-16 text-gold/10" />
+                </div>
+              )}
+            </>
           )}
           <div className="absolute bottom-2 right-2 bg-black/50 px-2 text-xs py-1 text-off-white font-medium" dir="rtl">
             المضيف
