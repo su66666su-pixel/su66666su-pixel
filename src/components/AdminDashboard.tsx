@@ -351,7 +351,7 @@ export default function AdminDashboard() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {joinRequests.map((request, idx) => (
-                  <tr key={`request-${request.id}-${idx}`} className="group hover:bg-white/[0.02] transition-all">
+                  <tr key={`join-req-${request.id || idx}-${idx}`} className="group hover:bg-white/[0.02] transition-all">
                     <td className="py-4">
                       <div className="flex items-center gap-3">
                         <div className="relative">

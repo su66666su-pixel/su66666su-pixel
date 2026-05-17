@@ -13,6 +13,7 @@ interface ProfileManagementModalProps {
 
 export default function ProfileManagementModal({ user, isOpen, onClose }: ProfileManagementModalProps) {
   const [username, setUsername] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const [showEmail, setShowEmail] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -72,8 +73,32 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
     }
   };
 
+  const validateUsername = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed.length < 3) {
+      return "يجب أن يكون الاسم 3 أحرف على الأقل 📏";
+    }
+    if (trimmed.length > 20) {
+      return "الاسم طويل جداً، الحد الأقصى 20 حرف 🏰";
+    }
+    
+    // Regex for: English letters, Arabic letters, numbers, underscores, and spaces
+    const validCharsRegex = /^[a-zA-Z0-9_\u0600-\u06FF\s]+$/;
+    if (!validCharsRegex.test(trimmed)) {
+      return "الاسم يحتوي على رموز غير مسموحة ❌";
+    }
+    
+    return "";
+  };
+
   const handleUpdateUsername = async () => {
-    if (!username.trim()) return;
+    const error = validateUsername(username);
+    if (error) {
+      setUsernameError(error);
+      showToast(error, 'error');
+      return;
+    }
+    
     setIsUpdating(true);
     try {
       const { error } = await supabase
@@ -83,6 +108,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
 
       if (error) throw error;
       showToast("تم تحديث الاسم الملكي بنجاح! 👑", 'royal');
+      setUsernameError('');
     } catch (err: any) {
       showToast("فضل التحديث: " + err.message, 'error');
     } finally {
@@ -368,21 +394,38 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                     <User className="w-4 h-4 text-neon-gold" />
                     <h3 className="text-xs font-black uppercase tracking-widest text-gray-200">الاسم الملكي</h3>
                   </div>
-                  <div className="flex gap-3">
-                    <input 
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="أدخل الاسم الجديد..."
-                      className={`flex-1 royal-input px-4 py-3 text-sm ${userProfile?.subscription_tier === 'ذهبي' ? 'neon-text-glow' : ''}`}
-                    />
-                    <button 
-                      onClick={handleUpdateUsername}
-                      disabled={isUpdating}
-                      className="bg-neon-gold text-royal-black px-6 font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
-                    >
-                      {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'تحديث'}
-                    </button>
+                  <div className="space-y-2">
+                    <div className="flex gap-3">
+                      <input 
+                        type="text"
+                        value={username}
+                        onChange={(e) => {
+                          setUsername(e.target.value);
+                          if (usernameError) setUsernameError('');
+                        }}
+                        placeholder="أدخل الاسم الجديد..."
+                        className={`flex-1 royal-input px-4 py-3 text-sm ${userProfile?.subscription_tier === 'ذهبي' ? 'neon-text-glow' : ''} ${usernameError ? 'border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : ''}`}
+                      />
+                      <button 
+                        onClick={handleUpdateUsername}
+                        disabled={isUpdating}
+                        className="bg-neon-gold text-royal-black px-6 font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+                      >
+                        {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'تحديث'}
+                      </button>
+                    </div>
+                    <AnimatePresence>
+                      {usernameError && (
+                        <motion.p 
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="text-[10px] text-red-500 font-bold tracking-tight"
+                        >
+                          {usernameError}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </section>
 
@@ -592,7 +635,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                       >
                         {nearbyUsers.map((profile, idx) => (
                           <motion.div 
-                            key={`nearby-${profile.id}-${idx}`}
+                            key={`nearby-res-${profile.id || idx}-${idx}`}
                             initial={{ x: 20, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
                             className="w-full"

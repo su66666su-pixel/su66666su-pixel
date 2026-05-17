@@ -291,7 +291,7 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
           const isOwn = msg.senderId === user.uid;
           return (
             <motion.div
-              key={`msg-${msg.id || idx}-${idx}`}
+              key={`msg-${msg.id || 'un-' + idx}-${idx}`}
               initial={{ opacity: 0, x: isOwn ? 20 : -20 }}
               animate={{ opacity: 1, x: 0 }}
               className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}

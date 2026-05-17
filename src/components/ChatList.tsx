@@ -360,7 +360,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
             ) : (
               rooms.map((room, idx) => (
                 <ChatItem 
-                  key={`room-${room.id}-${idx}`}
+                  key={`chat-room-${room.id || idx}-${idx}`}
                   room={room}
                   isActive={selectedRoom?.id === room.id}
                   onClick={() => setSelectedRoom(room)}

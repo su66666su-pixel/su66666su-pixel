@@ -73,7 +73,7 @@ export default function ActiveUsersSidebar({ currentUser }: { currentUser: any }
         ) : users.length > 0 ? (
           users.map((user, idx) => (
             <motion.div 
-              key={`active-${user.id}-${idx}`}
+              key={`active-explorer-${user.id || idx}-${idx}`}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: idx * 0.05 }}
