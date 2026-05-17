@@ -173,7 +173,7 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
     };
   }, [room.id]);
 
-  const handleSendMessage = async (e?: React.FormEvent, fileData?: { url: string, type: 'image' | 'video' }) => {
+  const handleSendMessage = async (e?: React.FormEvent, fileData?: { url: string, type: 'image' | 'video' | 'file' }) => {
     e?.preventDefault();
     if (!newMessage.trim() && !fileData) return;
 
@@ -388,7 +388,16 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
                     }
                   `}
                 >
-                  {msg.fileType === 'image' && msg.fileUrl && (
+                  {msg.fileType === 'file' && msg.fileUrl?.startsWith('GIFT:') && (
+                    <div className="flex flex-col items-center gap-2 p-4 bg-neon-gold/10 border border-neon-gold/20 rounded-xl mb-2">
+                       <GiftIcon className="w-8 h-8 text-neon-gold animate-bounce" />
+                       <span className="text-xl">{msg.fileUrl.split(':')[1].split(' ')[0]}</span>
+                       <span className="font-black text-[10px] text-neon-gold uppercase tracking-widest">
+                         {msg.fileUrl.split(' ')[1]}
+                       </span>
+                    </div>
+                  )}
+                  {msg.fileType === 'image' && msg.fileUrl && !msg.fileUrl.startsWith('GIFT:') && (
                     <img 
                       src={msg.fileUrl} 
                       alt="attachment" 

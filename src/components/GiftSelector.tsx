@@ -15,9 +15,11 @@ interface GiftSelectorProps {
 }
 
 const GIFTS: Gift[] = [
-  { id: 'star', name: 'نجمة', emoji: '⭐', points: 50 },
-  { id: 'crown', name: 'تاج', emoji: '👑', points: 100 },
-  { id: 'diamond', name: 'ماسة', emoji: '💎', points: 200 },
+  { id: 'star', name: 'نجمة ملكية', emoji: '⭐', points: 50 },
+  { id: 'crown', name: 'تاج السيادة', emoji: '👑', points: 100 },
+  { id: 'diamond', name: 'ماسة نادرة', emoji: '💎', points: 200 },
+  { id: 'castle', name: 'قصر منيف', emoji: '🏰', points: 500 },
+  { id: 'dragon', name: 'تنين حارس', emoji: '🐉', points: 1000 },
 ];
 
 export default function GiftSelector({ onSendGift, onClose }: GiftSelectorProps) {
