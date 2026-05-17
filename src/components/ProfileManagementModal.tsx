@@ -107,8 +107,11 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
         .eq('id', user.uid);
 
       if (error) throw error;
-      showToast("تم تحديث الاسم الملكي بنجاح! 👑", 'royal');
+      showToast("👑 تم تحديث اسمك الملكي بنجاح في النظام!", 'royal');
       setUsernameError('');
+      // Force reload to sync changes across all components if necessary, 
+      // although state updates are preferred, user snippet suggests reload.
+      setTimeout(() => window.location.reload(), 1500);
     } catch (err: any) {
       showToast("فضل التحديث: " + err.message, 'error');
     } finally {
@@ -456,6 +459,7 @@ export default function ProfileManagementModal({ user, isOpen, onClose }: Profil
                   <div className="space-y-2">
                     <div className="flex gap-3">
                       <input 
+                        id="usernameInput"
                         type="text"
                         value={username}
                         onChange={(e) => {
