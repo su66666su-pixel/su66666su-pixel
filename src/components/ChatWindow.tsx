@@ -15,7 +15,12 @@ import {
   X,
   Check,
   CheckCheck,
-  ShieldCheck
+  ShieldCheck,
+  MessageCircle,
+  TriangleAlert,
+  Trash2,
+  Timer,
+  Flame
 } from 'lucide-react';
 import { 
   db, 
@@ -50,6 +55,7 @@ interface Message {
   fileType: 'text' | 'image' | 'video' | 'file';
   timestamp: Timestamp | null;
   readBy?: string[];
+  burnAfter?: number | null;
 }
 
 interface ChatWindowProps {
@@ -60,12 +66,38 @@ interface ChatWindowProps {
 }
 
 export default function ChatWindow({ room, user, onBack, onStartVideoCall }: ChatWindowProps) {
+  const [isSelfDestruct, setIsSelfDestruct] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Self-Destruct Timer Logic
+  useEffect(() => {
+    const timers: { [key: string]: NodeJS.Timeout } = {};
+    
+    messages.forEach(msg => {
+        if (msg.burnAfter && msg.timestamp && !timers[msg.id]) {
+            const timePassed = (Date.now() - msg.timestamp.toMillis()) / 1000;
+            const remaining = msg.burnAfter - timePassed;
+            
+            if (remaining <= 0) {
+                deleteMessage(msg.id);
+            } else {
+                timers[msg.id] = setTimeout(() => {
+                    deleteMessage(msg.id);
+                }, remaining * 1000);
+            }
+        }
+    });
+
+    return () => {
+        Object.values(timers).forEach(clearTimeout);
+    };
+  }, [messages]);
   const [showGifts, setShowGifts] = useState(false);
   const { showToast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -215,6 +247,28 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
     };
   }, [room.id]);
 
+  const deleteMessage = async (messageId: string) => {
+    try {
+      setIsDeleting(true);
+      // 1. Delete from Firebase
+      const { deleteDoc, doc: fireDoc } = await import('firebase/firestore');
+      await deleteDoc(fireDoc(db, 'rooms', room.id, 'messages', messageId));
+
+      // 2. Delete from Supabase
+      await supabase
+        .from('messages')
+        .delete()
+        .eq('id', messageId);
+
+      showToast("تم حذف الرسالة بنجاح 🗑️", 'info');
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+      showToast("فشل الحذف: " + err.message, 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleSendMessage = async (e?: React.FormEvent, fileData?: { url: string, type: 'image' | 'video' | 'file' }) => {
     e?.preventDefault();
     if (!newMessage.trim() && !fileData) return;
@@ -223,7 +277,8 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
       senderId: user.uid,
       senderName: user.displayName || user.email.split('@')[0],
       timestamp: serverTimestamp(),
-      fileType: fileData ? fileData.type : 'text'
+      fileType: fileData ? fileData.type : 'text',
+      burnAfter: isSelfDestruct ? 10 : null
     };
 
     if (newMessage.trim()) messageData.content = newMessage;
@@ -234,6 +289,7 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
     try {
       const textToSend = newMessage;
       setNewMessage('');
+      setIsSelfDestruct(false);
       
       // 1. Send to Firebase (Legacy)
       const docRef = await addDoc(collection(db, 'rooms', room.id, 'messages'), {
@@ -252,6 +308,7 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
           content: textToSend || null,
           file_url: fileData?.url || null,
           file_type: fileData?.type || 'text',
+          burn_after: messageData.burnAfter,
           read_by: [user.uid], // Sync readBy
           created_at: new Date().toISOString()
         });
@@ -259,6 +316,29 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
       // 3. Trigger AI Support if this is a support room
       if ((room as any).isSupport && textToSend) {
         handleIncomingAiSupport(textToSend, user.uid, messageData.senderName);
+      }
+
+      // 4. Update room last message and timestamp (Requested Sovereignty Protocol)
+      const lastMsgText = fileData 
+        ? (fileData.type === 'image' ? '📷 صورة ملكية' : fileData.type === 'video' ? '🎥 فيديو ملكي' : '📁 ملف ملكي') 
+        : textToSend;
+
+      try {
+        await updateDoc(doc(db, 'rooms', room.id), {
+          lastMessage: lastMsgText,
+          lastMessageTime: serverTimestamp(),
+          unreadCount: 0 // Reset unread when owner sends
+        });
+
+        await supabase
+          .from('rooms')
+          .update({
+            last_message: lastMsgText,
+            last_message_time: new Date().toISOString()
+          })
+          .eq('id', room.id);
+      } catch (sumErr) {
+        console.debug("Room summary update failed (Expected if Supabase table not fully initialized):", sumErr);
       }
         
     } catch (error) {
@@ -415,6 +495,24 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
                 channel_type: 'support', // As requested in snippet
                 created_at: new Date().toISOString()
             });
+
+            // Update room summary (Requested Sovereignty Protocol)
+            try {
+              await updateDoc(doc(db, 'rooms', room.id), {
+                lastMessage: aiResponse,
+                lastMessageTime: serverTimestamp()
+              });
+
+              await supabase
+                .from('rooms')
+                .update({
+                  last_message: aiResponse,
+                  last_message_time: new Date().toISOString()
+                })
+                .eq('id', room.id);
+            } catch (err) {
+              console.error("AI Support room update failed", err);
+            }
         }, 1500);
     }
   };
@@ -450,111 +548,166 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
   return (
     <div className="flex flex-col h-full bg-royal-black relative overflow-hidden">
       {/* Header */}
-      <header className="px-8 py-6 border-b royal-sidebar flex items-center justify-between backdrop-blur-md bg-royal-black/80 z-10">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="lg:hidden text-neon-gold p-2">
-            <ChevronRight className="w-6 h-6" />
-          </button>
-          <div className="w-12 h-12 border border-dim-gold/30 p-0.5 bg-dark-bg">
-            <div className="w-full h-full flex items-center justify-center bg-white/5">
-              <span className="text-neon-gold font-bold">{room.name.charAt(0)}</span>
-            </div>
-          </div>
-          <div className="text-right" dir="rtl">
-            <h2 className="text-lg font-bold text-neon-gold tracking-tight">{room.name}</h2>
-            <div className="flex items-center gap-2 text-[10px] text-gray-text uppercase tracking-widest font-black">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-              قناة سيادية مشفرة
-            </div>
-          </div>
-        </div>
+      {(() => {
+        const isSupportRoom = (room as any).isSupport;
+        const isVerificationRoom = room.name.includes("التوثيق"); // Anticipating future verification rooms
         
-        <div className="flex items-center gap-6">
-          <button 
-            onClick={startCall}
-            className="text-gray-text hover:text-neon-gold transition-colors p-2"
-            title="Sovereign Call"
-          >
-            <Phone className="w-5 h-5" />
-          </button>
-          <div className="hidden md:flex items-center gap-2 px-3 py-1 border border-neon-gold/20 rounded-full">
-            <Shield className="w-3 h-3 text-neon-gold" />
-            <span className="text-[10px] text-neon-gold uppercase tracking-[0.2em]">E2EE Secured</span>
-          </div>
-          <button className="text-gray-text hover:text-neon-gold transition-colors">
-            <MoreVertical className="w-5 h-5" />
-          </button>
-        </div>
-      </header>
+        let headerName = room.name;
+        let headerDesc = "منصة التواصل الفورية الآمنة للمستكشفين";
+        let headerIcon = <MessageCircle className="w-5 h-5 text-[#22c55e] drop-shadow-[0_0_5px_#22c55e]" />;
+        let iconBg = "bg-black border border-[#22c55e]/20 shadow-[0_0_15px_rgba(34,197,94,0.1)]";
+
+        if (isSupportRoom) {
+          headerName = "البلاغات والمشاكل التقنية";
+          headerDesc = "نظام الرد الذكي الفوري وبلاغات السيرفر";
+          headerIcon = <TriangleAlert className="w-5 h-5 text-red-500 drop-shadow-[0_0_5px_#ef4444]" />;
+          iconBg = "bg-black border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]";
+        } else if (isVerificationRoom) {
+          headerName = "مركز التوثيق السيادي";
+          headerDesc = "إدارة طلبات الرخص وتوثيق الهوية الرقمية";
+          headerIcon = <ShieldCheck className="w-5 h-5 text-[#D4AF37] drop-shadow-[0_0_5px_#D4AF37]" />;
+          iconBg = "bg-black border border-[#D4AF37]/20 shadow-[0_0_15px_rgba(212,175,55,0.1)]";
+        }
+
+        return (
+          <header className="border-b border-gray-900 p-4 flex justify-between items-center bg-[#050505] font-cairo select-none z-10" dir="rtl">
+            <div className="flex items-center gap-3">
+                <button onClick={onBack} className="lg:hidden text-gray-400 hover:text-white p-1 ml-1">
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+                <div className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-500 ${iconBg}`}>
+                    {headerIcon}
+                </div>
+                <div className="text-right">
+                    <h2 className="text-white text-lg font-black tracking-wide">{headerName}</h2>
+                    <p className="text-gray-500 text-[10px] mt-0.5">{headerDesc}</p>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+                <button 
+                  onClick={startCall}
+                  className="p-2.5 bg-[#0a0a0a] border border-gray-900 rounded-xl text-gray-400 hover:text-[#22c55e] hover:border-[#22c55e]/30 transition-all duration-300"
+                  title="Sovereign Call"
+                >
+                    <Phone className="w-4 h-4" />
+                </button>
+                <div className="hidden md:flex items-center gap-1.5 bg-[#080808] border border-gray-900 px-3 py-1.5 rounded-full">
+                    <div className="w-1.5 h-1.5 bg-[#22c55e] rounded-full animate-pulse"></div>
+                    <span className="text-[10px] text-gray-400 font-mono tracking-wider">E2EE SECURED</span>
+                </div>
+                <button className="text-gray-600 hover:text-white transition-colors p-1">
+                  <MoreVertical className="w-5 h-5" />
+                </button>
+            </div>
+          </header>
+        );
+      })()}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-8 space-y-6 scroll-smooth custom-scrollbar">
       {messages.map((msg, idx) => {
           const isOwn = msg.senderId === user.uid;
+          const isAi = msg.senderId === '00000000-0000-0000-0000-000000000000';
+          
           return (
             <motion.div
               key={`msg-${msg.id || 'un-' + idx}-${idx}`}
               initial={{ opacity: 0, x: isOwn ? 20 : -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${isOwn ? 'justify-end' : 'justify-start'} my-2 font-cairo group relative`}
             >
-              <div className={`max-w-[85%] group ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
-                {!isOwn && (
-                  <div className="flex items-center gap-2 mb-1 px-1">
-                    <span className="text-[#22c55e] font-black text-xs tracking-wide drop-shadow-[0_0_5px_rgba(34,197,94,0.15)] cursor-pointer hover:underline">
-                      {msg.senderName}
+              <div className={`max-w-[85%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+                {/* Header Info */}
+                <div className={`flex items-center gap-2 mb-1 px-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
+                    <span className={`${isOwn ? 'text-royal-black' : isAi ? 'text-neon-gold' : 'text-[#22c55e]'} font-black text-xs tracking-wide cursor-pointer hover:underline`}>
+                      {isOwn ? 'أنت' : msg.senderName}
                     </span>
-                    <ShieldCheck className="w-3 h-3 text-gold" />
-                  </div>
-                )}
-                <div className={`
-                    relative px-4 py-2.5 text-sm leading-relaxed overflow-hidden shadow-lg
-                    ${isOwn 
-                      ? 'bg-neon-gold text-royal-black font-bold rounded-2xl rounded-tl-none' 
-                      : 'bg-[#0d0d0d] border border-gray-900 text-gray-100 font-medium rounded-2xl rounded-tr-none'
-                    }
-                  `}
-                >
-                  {msg.fileType === 'file' && msg.fileUrl?.startsWith('GIFT:') && (
-                    <div className="flex flex-col items-center gap-2 p-4 bg-neon-gold/10 border border-neon-gold/20 rounded-xl mb-2">
-                       <GiftIcon className="w-8 h-8 text-neon-gold animate-bounce" />
-                       <span className="text-xl">{msg.fileUrl.split(':')[1].split(' ')[0]}</span>
-                       <span className="font-black text-[10px] text-neon-gold uppercase tracking-widest">
-                         {msg.fileUrl.split(' ')[1]}
-                       </span>
-                    </div>
-                  )}
-                  {msg.fileType === 'image' && msg.fileUrl && !msg.fileUrl.startsWith('GIFT:') && (
-                    <img 
-                      src={msg.fileUrl} 
-                      alt="attachment" 
-                      className="max-w-full rounded-lg mb-2 border border-white/10" 
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
-                  {msg.fileType === 'video' && msg.fileUrl && (
-                    <video 
-                      src={msg.fileUrl} 
-                      controls 
-                      className="max-w-full rounded-lg mb-2 border border-white/10" 
-                    />
-                  )}
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                    {!isOwn && (isAi ? <Sparkles className="w-3 h-3 text-neon-gold animate-pulse" /> : <ShieldCheck className="w-3 h-3 text-[#22c55e]" />)}
+                    {isAi && <Timer className="w-3 h-3 text-neon-gold text-[10px] animate-pulse" />}
+                </div>
 
-                  <div className={`flex items-center gap-1.5 mt-2 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`text-[9px] font-mono tracking-tighter ${isOwn ? 'text-royal-black/60' : 'text-[#22c55e]/60'}`}>
-                      {formatMessageTime(msg.timestamp)}
-                    </div>
-                    {isOwn && (
-                      <span className="opacity-60">
-                        {msg.readBy && msg.readBy.length > 1 ? (
-                          <CheckCheck className="w-3 h-3" />
-                        ) : (
-                          <Check className="w-3 h-3" />
+                {/* Message Bubble */}
+                <div className="relative group/bubble flex items-center">
+                    {/* Hover Actions (Delete) */}
+                    <div className={`
+                        absolute ${isOwn ? '-left-12' : '-right-12'} top-1/2 -translate-y-1/2 flex items-center gap-1.5 
+                        opacity-0 group-hover/bubble:opacity-100 transition-all duration-300 scale-90 group-hover/bubble:scale-100
+                    `}>
+                        {isOwn && (
+                          <button 
+                            onClick={() => deleteMessage(msg.id)}
+                            disabled={isDeleting}
+                            className="w-7 h-7 bg-black border border-red-950 text-red-500 hover:bg-red-600 hover:text-white rounded-lg flex items-center justify-center transition-all duration-200 shadow-md" 
+                            title="مسح الرسالة نهائياً"
+                          >
+                              <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         )}
-                      </span>
-                    )}
-                  </div>
+                    </div>
+
+                    <div className={`
+                        relative px-5 py-3 text-sm leading-relaxed shadow-xl transition-all duration-300
+                        ${isOwn 
+                          ? 'bg-neon-gold text-royal-black font-bold rounded-2xl rounded-tl-none shadow-[0_4px_15px_rgba(255,215,0,0.15)]' 
+                          : 'bg-[#0d0d0d] border border-gray-900 text-gray-100 font-medium rounded-2xl rounded-tr-none'
+                        }
+                        ${isAi ? 'border-neon-gold/30 shadow-[0_0_15px_rgba(255,215,0,0.05)]' : ''}
+                        ${msg.burnAfter ? 'border-red-500/30' : ''}
+                      `}
+                    >
+                      {msg.burnAfter && (
+                        <div className="absolute -top-2 -left-2 bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded-full font-mono animate-pulse flex items-center gap-1 shadow-lg z-20">
+                          <Flame className="w-2 h-2" />
+                          <span>SELF-DESTRUCT ACTIVE</span>
+                        </div>
+                      )}
+                      {msg.fileType === 'file' && msg.fileUrl?.startsWith('GIFT:') && (
+                        <div className="flex flex-col items-center gap-2 p-4 bg-neon-gold/10 border border-neon-gold/20 rounded-xl mb-2">
+                           <GiftIcon className="w-8 h-8 text-neon-gold animate-bounce" />
+                           <span className="text-xl">{msg.fileUrl.split(':')[1].split(' ')[0]}</span>
+                           <span className="font-black text-[10px] text-neon-gold uppercase tracking-widest">
+                             {msg.fileUrl.split(' ')[1]}
+                           </span>
+                        </div>
+                      )}
+                      
+                      {msg.fileType === 'image' && msg.fileUrl && !msg.fileUrl.startsWith('GIFT:') && (
+                        <div className="relative group/img cursor-zoom-in">
+                          <img 
+                            src={msg.fileUrl} 
+                            alt="attachment" 
+                            className="max-w-full rounded-lg mb-2 border border-white/5 transition-transform group-hover/img:scale-[1.01]" 
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      )}
+                      
+                      {msg.fileType === 'video' && msg.fileUrl && (
+                        <video 
+                          src={msg.fileUrl} 
+                          controls 
+                          className="max-w-full rounded-lg mb-2 border border-white/5" 
+                        />
+                      )}
+                      
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+
+                      <div className={`flex items-center gap-1.5 mt-2.5 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`text-[9px] font-mono tracking-tighter ${isOwn ? 'text-royal-black/60' : 'text-gray-500'}`}>
+                          {formatMessageTime(msg.timestamp)}
+                        </div>
+                        {isOwn && (
+                          <span className="opacity-60">
+                            {msg.readBy && msg.readBy.length > 1 ? (
+                              <CheckCheck className="w-3.5 h-3.5" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                 </div>
               </div>
             </motion.div>
@@ -632,14 +785,23 @@ export default function ChatWindow({ room, user, onBack, onStartVideoCall }: Cha
             <GiftIcon className="w-6 h-6" />
           </button>
           
+          <button 
+            type="button" 
+            onClick={() => setIsSelfDestruct(!isSelfDestruct)}
+            className={`p-2 rounded-xl transition-all ${isSelfDestruct ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.4)]' : 'text-gray-text hover:text-red-500'}`}
+            title="تفعيل التدمير الذاتي (١٠ ثواني)"
+          >
+            <Flame className={`w-5 h-5 ${isSelfDestruct ? 'animate-pulse' : ''}`} />
+          </button>
+          
           <div className="relative flex-1 group">
             <input 
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="اكتب رسالة ملكية مشفرة..."
+              placeholder={isSelfDestruct ? "رسالة ستدمر ذاتياً (١٠ ثواني)..." : "اكتب رسالة ملكية مشفرة..."}
               dir="rtl"
-              className="w-full royal-input px-8 py-4 text-sm"
+              className={`w-full transition-all px-8 py-4 text-sm ${isSelfDestruct ? 'bg-red-950/10 border-red-900/40 focus:border-red-500/60' : 'royal-input'}`}
             />
             <div className="absolute inset-0 border border-neon-gold/5 opacity-0 group-focus-within:opacity-100 pointer-events-none transition-opacity" />
           </div>
