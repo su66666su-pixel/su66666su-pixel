@@ -53,12 +53,13 @@ interface Message {
 }
 
 interface ChatWindowProps {
-  room: { id: string; name: string; is_group: boolean };
+  room: { id: string; name: string; is_group: boolean; memberIds?: string[] };
   user: any;
   onBack: () => void;
+  onStartVideoCall: (name: string, id: string) => void;
 }
 
-export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
+export default function ChatWindow({ room, user, onBack, onStartVideoCall }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -324,6 +325,33 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
     setPreviewUrl(null);
   };
 
+  const startCall = () => {
+    const otherId = room.memberIds?.find(id => id !== user.uid);
+    if (!otherId || room.is_group) {
+      showToast("المكالمات متوفرة فقط في المحادثات الثنائية حالياً", 'info');
+      return;
+    }
+
+    // Notify ChatList to open VideoCall UI
+    onStartVideoCall(room.name, otherId);
+
+    // Send Signal to Target User's personal inbox channel
+    const inboxChannel = supabase.channel(`inbox_${otherId}`);
+    inboxChannel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        inboxChannel.send({
+          type: 'broadcast',
+          event: 'call_request',
+          payload: { 
+            callerName: user.displayName || user.email.split('@')[0], 
+            callerId: user.uid 
+          }
+        }).then(() => {
+          supabase.removeChannel(inboxChannel);
+        });
+      }
+    });
+  };
   const handleSendGift = async (gift: any) => {
     setShowGifts(false);
     
@@ -388,9 +416,9 @@ export default function ChatWindow({ room, user, onBack }: ChatWindowProps) {
         
         <div className="flex items-center gap-6">
           <button 
-            onClick={() => (window as any).simulateIncomingCall?.()}
+            onClick={startCall}
             className="text-gray-text hover:text-neon-gold transition-colors p-2"
-            title="Simulate Call"
+            title="Sovereign Call"
           >
             <Phone className="w-5 h-5" />
           </button>

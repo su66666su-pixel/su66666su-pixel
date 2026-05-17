@@ -15,6 +15,14 @@ import {
   Bird
 } from 'lucide-react';
 import GiftSelector from './GiftSelector';
+import { supabase } from '../supabase';
+
+const rtcConfig = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ]
+};
 
 interface ActiveGift {
   type: string;
@@ -26,10 +34,14 @@ interface ActiveGift {
 interface VideoCallProps {
   onHangUp: () => void;
   targetName: string;
+  targetUserId: string;
 }
 
-export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
+export default function VideoCall({ onHangUp, targetName, targetUserId }: VideoCallProps) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const channelRef = useRef<any>(null);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -68,30 +80,15 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
   };
 
   useEffect(() => {
-    async function startCamera() {
+    async function setupCall() {
       try {
-        // Try to get both video and audio first
+        // 1. Start Local Stream
         const mediaStream = await navigator.mediaDevices.getUserMedia({ 
           video: true, 
           audio: true 
         }).catch(async (err) => {
-          console.warn("Failed to get both video and audio, trying fallback...", err);
-          
-          if (err.name === 'NotFoundError' || err.name === 'NotReadableError' || err.name === 'OverconstrainedError') {
-            // Try video only
-            try {
-              return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            } catch (vErr) {
-              console.warn("Failed to get video only, trying audio only...", vErr);
-              // Try audio only
-              try {
-                return await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-              } catch (aErr) {
-                throw aErr; // Both failed
-              }
-            }
-          }
-          throw err;
+          console.warn("Media access failed, trying fallback...", err);
+          return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         });
 
         setStream(mediaStream);
@@ -99,25 +96,84 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
           localVideoRef.current.srcObject = mediaStream;
         }
 
-        // Update UI states based on what we actually got
-        setIsVideoOn(mediaStream.getVideoTracks().length > 0);
-        setIsMicOn(mediaStream.getAudioTracks().length > 0);
+        // 2. Initialize PeerConnection
+        const pc = new RTCPeerConnection(rtcConfig);
+        peerConnectionRef.current = pc;
+
+        mediaStream.getTracks().forEach(track => {
+          pc.addTrack(track, mediaStream);
+        });
+
+        pc.ontrack = (event) => {
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = event.streams[0];
+          }
+        };
+
+        // 3. Signaling Channel
+        const channelId = `call_${targetUserId}`;
+        const channel = supabase.channel(channelId);
+        channelRef.current = channel;
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            channel.send({
+              type: 'broadcast',
+              event: 'ice-candidate',
+              payload: { candidate: event.candidate }
+            });
+          }
+        };
+
+        // 4. Listen for signaling events
+        channel
+          .on('broadcast', { event: 'video-offer' }, async ({ payload }) => {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            channel.send({
+              type: 'broadcast',
+              event: 'video-answer',
+              payload: { answer }
+            });
+          })
+          .on('broadcast', { event: 'video-answer' }, async ({ payload }) => {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+          })
+          .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
+            if (payload.candidate) {
+              await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            }
+          })
+          .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+              // As the initiator, create an offer
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              channel.send({
+                type: 'broadcast',
+                event: 'video-offer',
+                payload: { offer }
+              });
+            }
+          });
 
       } catch (err: any) {
-        console.error("Final error accessing media devices:", err);
-        let msg = "تعذر الوصول إلى الكاميرا أو الميكروفون";
-        if (err.name === 'NotAllowedError') msg = "تم رفض الوصول للكاميرا/الميكروفون";
-        if (err.name === 'NotFoundError') msg = "لم يتم العثور على كاميرا أو ميكروفون متاح";
-        setErrorStatus(msg);
+        console.error("Call setup error:", err);
+        setErrorStatus("فشل بدء الاتصال السيادي");
       }
     }
 
-    startCamera();
+    setupCall();
 
     return () => {
       stream?.getTracks().forEach(track => track.stop());
+      peerConnectionRef.current?.close();
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
     };
-  }, []);
+  }, [targetUserId]);
 
   const toggleMic = () => {
     if (stream) {
@@ -149,7 +205,13 @@ export default function VideoCall({ onHangUp, targetName }: VideoCallProps) {
       <div className="relative flex-1 w-full max-w-4xl mx-auto my-4 bg-[#050505] border border-gray-900 rounded-3xl overflow-hidden shadow-[0_0_5px_rgba(34,197,94,0.1)]">
           {/* Remote Video (Guest) */}
           <div className="w-full h-full bg-black relative">
-            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-6 z-0">
+            <video 
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-6 z-0 pointer-events-none">
                <div className="w-32 h-32 border border-white/5 p-2 bg-[#0c0c0c] relative">
                 <img 
                   src={`https://ui-avatars.com/api/?name=${targetName}&background=111&color=555&size=256`} 

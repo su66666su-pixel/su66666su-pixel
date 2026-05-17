@@ -107,8 +107,8 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
-  const [incomingCall, setIncomingCall] = useState<{ callerName: string } | null>(null);
-  const [activeCall, setActiveCall] = useState<{ targetName: string } | null>(null);
+  const [incomingCall, setIncomingCall] = useState<{ callerName: string, callerId: string } | null>(null);
+  const [activeCall, setActiveCall] = useState<{ targetName: string, targetId: string } | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
@@ -128,6 +128,24 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   const filteredUsers = availableUsers.filter(u => 
     u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  useEffect(() => {
+    // Listen for incoming calls via Supabase Realtime broadcast
+    if (!user) return;
+    
+    const callSubscription = supabase.channel(`inbox_${user.uid}`)
+      .on('broadcast', { event: 'call_request' }, ({ payload }) => {
+        setIncomingCall({ 
+          callerName: payload.callerName, 
+          callerId: payload.callerId 
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(callSubscription);
+    };
+  }, [user.uid]);
 
   useEffect(() => {
     if (viewMode === 'users') {
@@ -408,45 +426,47 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
   return (
     <div className="flex h-screen w-full bg-dark-bg text-off-white overflow-hidden selection:bg-gold selection:text-black">
       {/* Sidebar Navigation */}
-      <aside className="w-20 bg-[#030303] border-l border-gray-900 flex flex-col items-center justify-between py-6 select-none z-20 h-screen shrink-0">
+      <aside className="w-20 bg-[#030303] border-l border-gray-900 flex flex-col items-center py-6 select-none z-20 h-screen shrink-0 relative">
         
-        <div className="flex flex-col items-center gap-8">
-            {/* Branding / SA Logo */}
-            <motion.div 
-              whileHover={{ scale: 1.05 }}
-              onClick={() => setIsSubscriptionOpen(true)}
-              className="relative w-14 h-14 flex items-center justify-center bg-black border-2 border-[#22c55e] rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.25)] hover:shadow-[0_0_30px_#22c55e] cursor-pointer group transition-all duration-300"
-            >
-                <span className="text-white font-black text-xl tracking-tighter font-mono group-hover:text-[#D4AF37] transition-colors duration-300">SA</span>
-                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#22c55e] rounded-full shadow-[0_0_10px_#22c55e] animate-ping"></div>
-                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#22c55e] rounded-full shadow-[0_0_8px_#22c55e]"></div>
-            </motion.div>
+        {/* Branding / SA Logo */}
+        <motion.div 
+          whileHover={{ scale: 1.05 }}
+          onClick={() => setIsSubscriptionOpen(true)}
+          className="relative w-14 h-14 flex items-center justify-center bg-black border-2 border-[#22c55e] rounded-2xl shadow-[0_0_25px_rgba(34,197,94,0.35)] cursor-pointer group transition-all duration-300 z-10"
+        >
+            <span className="text-white font-black text-xl font-mono tracking-tighter">SA</span>
+            <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#22c55e] rounded-full shadow-[0_0_12px_#22c55e] animate-ping"></div>
+            <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#22c55e] rounded-full shadow-[0_0_8px_#22c55e]"></div>
+        </motion.div>
 
-            {/* Nav Items */}
+        {/* Vertical Decorative Line */}
+        <div className="absolute top-24 bottom-24 w-[2px] bg-gradient-to-b from-[#22c55e] via-[#22c55e]/30 to-transparent shadow-[0_0_15px_rgba(34,197,94,0.2)] z-0"></div>
+
+        <div className="flex flex-col items-center gap-10 mt-10 z-10 w-full">
+
             <button 
               onClick={() => setViewMode('chats')}
-              className={`relative p-3 rounded-xl transition-all duration-300 group ${viewMode === 'chats' ? 'text-[#D4AF37] bg-[#0f0f0f] shadow-[0_0_15px_rgba(212,175,55,0.05)] border border-gray-900/50' : 'text-gray-500 hover:text-[#D4AF37] hover:bg-[#0f0f0f] hover:shadow-[0_0_15px_rgba(212,175,55,0.1)]'}`}
+              className={`relative p-3 rounded-xl transition-all duration-300 group ${viewMode === 'chats' ? 'text-[#22c55e] bg-[#070707] border border-[#22c55e]/40 shadow-[0_0_20px_rgba(34,197,94,0.25)] scale-105' : 'text-gray-400 hover:text-[#22c55e] hover:bg-black hover:border hover:border-[#22c55e]/20 hover:shadow-[0_0_15px_rgba(34,197,94,0.15)]'}`}
             >
                 <MessageSquare className={`w-6 h-6 transition-transform duration-300 group-hover:scale-110`} />
-                {viewMode === 'chats' && <span className="absolute top-2 right-2 w-2 h-2 bg-[#D4AF37] rounded-full shadow-[0_0_8px_#D4AF37]"></span>}
+                {viewMode === 'chats' && <div className="absolute inset-0 bg-[#22c55e]/5 rounded-xl blur-sm -z-10"></div>}
             </button>
 
-            <button className="p-3 text-gray-500 rounded-xl transition-all duration-300 hover:text-[#D4AF37] hover:bg-[#0f0f0f] group">
+            <button className="p-3 text-gray-400 rounded-xl transition-all duration-300 hover:text-[#22c55e] hover:bg-black hover:border hover:border-[#22c55e]/20 hover:shadow-[0_0_15px_rgba(34,197,94,0.15)] group">
                 <Phone className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
             </button>
 
             <button 
               onClick={() => setViewMode('users')}
-              className={`relative p-3 rounded-xl transition-all duration-300 group ${viewMode === 'users' ? 'text-[#D4AF37] bg-[#0f0f0f] shadow-[0_0_15px_rgba(212,175,55,0.05)] border border-gray-900/50' : 'text-gray-500 hover:text-[#D4AF37] hover:bg-[#0f0f0f] hover:shadow-[0_0_15px_rgba(212,175,55,0.1)]'}`}
+              className={`relative p-3 rounded-xl transition-all duration-300 group ${viewMode === 'users' ? 'text-[#22c55e] bg-[#070707] border border-[#22c55e]/40 shadow-[0_0_20px_rgba(34,197,94,0.25)] scale-105' : 'text-[#D4AF37]/80 hover:text-[#22c55e] hover:bg-black hover:border hover:border-[#22c55e]/20 hover:shadow-[0_0_15px_rgba(34,197,94,0.15)]'}`}
             >
                 <Users className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
-                {viewMode === 'users' && <span className="absolute top-2 right-2 w-2 h-2 bg-[#D4AF37] rounded-full shadow-[0_0_8px_#D4AF37]"></span>}
             </button>
 
             {userProfile?.role === 'admin' && (
               <button 
                 onClick={() => setIsAdminView(true)}
-                className="p-3 text-gray-500 rounded-xl transition-all duration-300 hover:text-gold hover:bg-[#0f0f0f] group relative"
+                className="p-3 text-gray-500 rounded-xl transition-all duration-300 hover:text-gold hover:bg-black hover:border hover:border-gold/20 group relative"
               >
                   <LayoutDashboard className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
                   <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-neon-gold rounded-full animate-pulse" />
@@ -455,24 +475,24 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
 
             <button 
               onClick={() => setIsProfileOpen(true)}
-              className={`p-3 text-gray-500 rounded-xl transition-all duration-300 hover:text-[#22c55e] hover:bg-[#0f0f0f] group ${isProfileOpen ? 'text-[#22c55e] bg-[#0f0f0f]' : ''}`}
+              className={`p-3 text-gray-500 rounded-xl transition-all duration-300 hover:text-[#22c55e] hover:bg-black hover:border hover:border-[#22c55e]/20 group ${isProfileOpen ? 'text-[#22c55e] bg-black border border-[#22c55e]/30' : ''}`}
             >
-                <Settings className="w-6 h-6 transition-transform duration-300 group-hover:rotate-45" />
+                <Settings className="w-6 h-6 transition-transform duration-500 group-hover:rotate-45" />
             </button>
         </div>
 
-        <div className="flex flex-col items-center gap-6">
-            <div className="w-12 h-12 p-0.5 border border-[#D4AF37]/40 rounded-xl overflow-hidden shadow-[0_0_15px_rgba(212,175,55,0.1)] transition-all duration-300 hover:scale-105 hover:border-[#D4AF37]">
+        <div className="flex flex-col items-center gap-6 mt-auto">
+            <div className="w-12 h-12 p-0.5 border border-[#D4AF37]/30 rounded-xl overflow-hidden shadow-[0_0_15px_rgba(212,175,55,0.08)] transition-all duration-300 hover:scale-105 hover:border-[#D4AF37] hover:shadow-[0_0_20px_rgba(212,175,55,0.2)]">
                 <img 
                   src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=D4AF37&color=111`} 
                   alt="Profile" 
-                  className="w-full h-full object-cover rounded-lg filter grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="w-full h-full object-cover rounded-lg filter grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300" 
                 />
             </div>
 
             <button 
               onClick={onLogout}
-              className="p-3 text-gray-600 rounded-xl transition-all duration-300 hover:text-red-500 hover:bg-red-950/20 group"
+              className="p-3 text-gray-600 rounded-xl transition-all duration-300 hover:text-red-500 hover:bg-red-950/10 group"
             >
                 <LogOut className="w-6 h-6 transition-transform duration-300 group-hover:translate-x-1" />
             </button>
@@ -623,6 +643,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
                   room={selectedRoom} 
                   user={user} 
                   onBack={() => setSelectedRoom(null)} 
+                  onStartVideoCall={(name, id) => setActiveCall({ targetName: name, targetId: id })}
                 />
               </motion.div>
             ) : (
@@ -671,7 +692,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
           <IncomingCallModal 
             callerName={incomingCall.callerName}
             onAccept={() => {
-              setActiveCall({ targetName: incomingCall.callerName });
+              setActiveCall({ targetName: incomingCall.callerName, targetId: incomingCall.callerId });
               setIncomingCall(null);
             }}
             onReject={() => {
@@ -684,6 +705,7 @@ export default function ChatList({ user, onLogout }: { user: any, onLogout: () =
         {activeCall && (
           <VideoCall 
             targetName={activeCall.targetName}
+            targetUserId={activeCall.targetId}
             onHangUp={() => setActiveCall(null)}
           />
         )}
